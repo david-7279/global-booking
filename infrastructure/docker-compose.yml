@@ -1,0 +1,28 @@
+# Docker Compose
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-globalbooking}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secret}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+    volumes:
+      - globalbooking_pgdata:/var/lib/postgresql/data
+      - ./init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-globalbooking} -d ${POSTGRES_DB:-postgres}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
+    networks:
+      - global-booking-network
+
+volumes:
+  globalbooking_pgdata:
+
+networks:
+  global-booking-network:
+    name: global-booking-network
