@@ -25,5 +25,11 @@ CREATE TABLE users
 -- INDEXES
 -- =========================================================
 
+CREATE INDEX idx_users_public_id
+    ON users (public_id);
+
+CREATE INDEX idx_users_email_address
+    ON users (email_address);
+
 CREATE INDEX idx_users_deleted_at
     ON users (deleted_at);
