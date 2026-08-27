@@ -200,3 +200,9 @@ README.html
 *.iml
 .idea
 .exercism
+
+# Environment variable files
+.env
+.env.local
+.env.local
+!.env.example
