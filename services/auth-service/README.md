@@ -122,3 +122,110 @@ auth-service/
 ├── pom.xml
 └── README.md
 ```
+
+## Configuration
+
+The service uses Spring profiles.
+
+| Profile | File                   | Description             | 
+|---------|------------------------|-------------------------|
+| `dev`   | `application-dev.yaml` | Development environment |
+
+Sensitive values (JWT secret, DB credentials) should be provided via environment variables in production.
+
+## Default development values
+
+| Variable      | Default Value                                                     |
+|---------------|-------------------------------------------------------------------|
+| `DB_HOST`     | `localhost` (or `postgres` inside Docker)                         |
+| `DB_PORT`     | `5432`                                                            |
+| `DB_NAME`     | `auth_service`                                                    |
+| `DB_USERNAME` | `globalbooking`                                                   |
+| `DB_PASSWORD` | `secret`                                                          |
+| `JWT_SECRET`  | `dev-secret-change-me-in-production-please-use-at-least-256-bits` |
+
+## Running with Docker Compose (recommended)
+
+From the `infrastructure/` folder:
+
+```bash
+# Start infrastructure + auth-service
+docker compose -f docker-compose-dev.yml up -d --build
+
+# Check status
+docker compose -f docker-compose-dev.yml ps
+
+# Follow logs
+docker compose -f docker-compose-dev.yml logs -f auth-service
+
+# Stop everything
+docker compose -f docker-compose-dev.yml down
+
+# Stop and remove volumes (reset databases)
+docker compose -f docker-compose-dev.yml down -v
+```
+
+### Health check
+
+```bash
+curl http://localhost:8080/actuator/health
+```
+
+Expected response:
+
+```text
+JSON{"groups":["liveness","readiness"],"status":"UP"}
+```
+
+## Running locally (without Docker for the service)
+
+1. Start only the database:
+
+```bash
+cd infrastructure 
+docker compose -f docker-compose-dev.yml up -d postgres
+```
+
+2. Run the service:
+
+```bash
+cd services/auth-service 
+./mvnw spring-boot:run
+```
+
+3. The service will be available at:
+
+```text
+http://localhost:8080
+```
+
+## Inspecting the database
+
+```bash
+# Enter psql
+docker exec -it global-booking-postgres psql -U globalbooking -d auth_service
+
+# Useful commands inside psql
+\dt                          # list tables
+\d users                     # describe table
+SELECT * FROM users;         # query data
+\q                           # quit
+```
+
+One-liner examples:
+
+```bash
+# List tables
+docker exec -it global-booking-postgres \
+  psql -U globalbooking -d auth_service -c "\dt"
+
+# Query users (after creating the entity)
+docker exec -it global-booking-postgres \
+  psql -U globalbooking -d auth_service -c "SELECT * FROM users;"
+```
+
+## Build
+
+```bash 
+./mvnw clean package -DskipTests
+```
