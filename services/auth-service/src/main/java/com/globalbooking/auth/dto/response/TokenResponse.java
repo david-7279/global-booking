@@ -1,0 +1,24 @@
+package com.globalbooking.auth.dto.response;
+
+/*
+ * Response DTO representing the access token envelope returned to the client
+ * after successful authentication or token renewal.
+ * The response includes the access token, the token type, and the time until the token expires.
+ *
+ * Embedded within {LoginResponse} and returned directly by the refresh token endpoint.
+ *
+ * Factory Method:
+ *  - {TokenResponse.of(String, long)}: It accepts the raw expiration value in milliseconds
+ *    and converts it to seconds, ensuring the contract with RC6750 is always respected
+ *    without requiring callers to perform the conversion manually.
+ */
+
+public record TokenResponse(
+        String accessToken,
+        String tokenType,
+        long expiresIn
+) {
+    public static TokenResponse of(String accessToken, long expiresInMs) {
+        return new TokenResponse(accessToken, "Bearer", expiresInMs / 1000);
+    }
+}
