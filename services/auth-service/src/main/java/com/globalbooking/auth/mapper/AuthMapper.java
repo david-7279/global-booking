@@ -16,10 +16,11 @@ public final class AuthMapper {
     public static AuthResponse toAuthResponse(
             User user,
             String accessToken,
+            String refreshToken,
             long expiresInMs
     ) {
         return new AuthResponse(
-                TokenResponse.of(accessToken, expiresInMs),
+                TokenResponse.of(accessToken, refreshToken, expiresInMs),
                 toUserResponse(user)
         );
     }
