@@ -15,7 +15,6 @@ import lombok.Builder;
  *    without requiring callers to perform the conversion manually.
  */
 
-
 @Builder
 public record TokenResponse(
         String accessToken,
@@ -25,11 +24,6 @@ public record TokenResponse(
 ) {
     private static final String BEARER = "Bearer";
 
-    /**
-     * @param accessToken  JWT de acesso
-     * @param refreshToken token opaco de refresh
-     * @param expiresInMs  tempo de vida do access token em milissegundos
-     */
     public static TokenResponse of(
             String accessToken,
             String refreshToken,
@@ -39,7 +33,7 @@ public record TokenResponse(
                 accessToken,
                 refreshToken,
                 BEARER,
-                expiresInMs / 1000   // converte para segundos
+                expiresInMs / 1000
         );
     }
 }
