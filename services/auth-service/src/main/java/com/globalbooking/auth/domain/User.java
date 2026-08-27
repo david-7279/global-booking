@@ -14,13 +14,7 @@ import java.util.UUID;
 @Getter
 @Entity
 @EntityListeners(AuditingEntityListener.class)
-@Table(
-        name = "users",
-        indexes = {
-                @Index(name = "idx_users_public_id", columnList = "public_id"),
-                @Index(name = "idx_users_email_address", columnList = "email_address")
-        }
-)
+@Table(name = "users")
 @SQLDelete(sql = "UPDATE users SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
 @SQLRestriction("deleted_at IS NULL")
 public class User {
@@ -36,11 +30,7 @@ public class User {
     @Column(name = "public_id", nullable = false, unique = true, updatable = false, columnDefinition = "UUID")
     private UUID publicId;
 
-    @Column(
-            name = "username",
-            nullable = false,
-            length = 120
-    )
+    @Column(name = "username", nullable = false, length = 120)
     private String username;
 
     @Column(name = "email_address", nullable = false, unique = true, length = 254)
@@ -66,8 +56,7 @@ public class User {
     private LocalDateTime updatedAt;
 
     /**
-     * Timestamp of logical deletion.
-     * NULL means the user is active.
+     * NULL indicates an active user.
      */
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
@@ -89,7 +78,7 @@ public class User {
         this.role = role;
     }
 
-    // ────────────────────  DOMAIN METHODS ────────────────────
+    // ──────────────────── DOMAIN METHODS ────────────────────
 
     public void updateUsername(String username) {
         this.username = username;
