@@ -1,0 +1,63 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: global-booking-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: globalbooking
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U globalbooking -d postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - global-booking-network
+
+  auth-service:
+    build:
+      context: ../services/auth-service
+      dockerfile: Dockerfile
+    container_name: global-booking-auth-service
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # Spring Profile
+      SPRING_PROFILES_ACTIVE: dev
+      # Database
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: auth_service
+      DB_USERNAME: globalbooking
+      DB_PASSWORD: secret
+      # JWT
+      JWT_SECRET: dev-secret-256bits-min-length-for-HS256-algorithm-do-not-use-in-prod
+      # Logging
+      LOGGING_LEVEL_ROOT: INFO
+      LOGGING_LEVEL_COM_GLOBALBOOKING: DEBUG
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    networks:
+      - global-booking-network
+
+volumes:
+  postgres_data:
+
+networks:
+  global-booking-network:
+    name: global-booking-network
