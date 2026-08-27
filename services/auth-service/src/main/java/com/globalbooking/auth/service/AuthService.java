@@ -179,6 +179,17 @@ public class AuthService {
         log.info("User account deleted successfully");
     }
 
+    /**
+     * Logs out the current user.
+     *
+     * Access tokens are stateless and remain valid until expiration.
+     * Token revocation will be handled when refresh-token persistence is introduced.
+     */
+    @Transactional(readOnly = true)
+    public void logout() {
+        log.info("User logout requested - Refresh token in development");
+    }
+
     private User findByPublicId(UUID publicId) {
         return userRepository.findByPublicId(publicId)
                 .orElseThrow(() ->
