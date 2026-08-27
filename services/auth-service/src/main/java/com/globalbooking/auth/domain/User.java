@@ -95,4 +95,8 @@ public class User {
     public void updateRole(Role role) {
         this.role = role;
     }
+
+    public boolean isDeleted() {
+        return deletedAt != null;
+    }
 }
