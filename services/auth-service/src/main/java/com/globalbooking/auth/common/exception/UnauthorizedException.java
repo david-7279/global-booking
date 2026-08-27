@@ -5,7 +5,10 @@ import org.springframework.http.HttpStatus;
 
 public class UnauthorizedException extends AuthException {
 
-    public UnauthorizedException(String message) {
+    public UnauthorizedException(
+            ErrorCode errorCode,
+            String message
+    ) {
         super(
                 ErrorCode.AUTHENTICATION_FAILED,
                 HttpStatus.UNAUTHORIZED,
