@@ -1,5 +1,6 @@
 -- =========================================================
--- V1 - Initial Auth Service Schema
+-- V2 - Updated Auth Service Schema
+-- Added Indexes for public ID and email address
 -- =========================================================
 
 -- =========================================================
