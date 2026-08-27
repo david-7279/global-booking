@@ -1,8 +1,12 @@
-# Auth Service application configuration
+# Auth Service
 
 spring:
   application:
     name: auth-service
-
   profiles:
     active: dev
+
+app:
+  jwt:
+    access-token-expiration: ${ACCESS_TOKEN_EXPIRATION:900000}
+    refresh-token-expiration: ${REFRESH_TOKEN_EXPIRATION:604800000}
