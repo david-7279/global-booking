@@ -6,5 +6,8 @@ spring:
 
 app:
   jwt:
-    access-token-expiration: ${ACCESS_TOKEN_EXPIRATION:900000}
-    refresh-token-expiration: ${REFRESH_TOKEN_EXPIRATION:604800000}
+      secret: ${JWT_SECRET}
+      issuer: ${JWT_ISSUER:global-booking-auth-service}
+      audience: ${JWT_AUDIENCE:global-booking-api}
+      access-token-expiration: ${ACCESS_TOKEN_EXPIRATION:900000}
+      refresh-token-expiration: ${REFRESH_TOKEN_EXPIRATION:604800000}
