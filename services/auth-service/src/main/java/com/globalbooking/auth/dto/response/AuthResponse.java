@@ -1,16 +1,10 @@
 package com.globalbooking.auth.dto.response;
 
-import java.util.UUID;
-
 /**
- * Authentication response returned after successful authentication
- * or account registration.
+ * Authentication response containing the issued token and user profile.
  */
 public record AuthResponse(
         TokenResponse token,
-        UUID publicId,
-        String username,
-        String email,
-        String role
+        UserResponse user
 ) {
 }
