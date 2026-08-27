@@ -1,12 +1,15 @@
 # Global Booking
 
-A multi-tenant SaaS platform for appointment management, designed for businesses such as hairdressers, massage therapists, personal trainers, and other service professionals.
+A multi-tenant SaaS platform for appointment management, designed for businesses such as hairdressers, massage
+therapists, personal trainers, and other service professionals.
 
 ## Overview
 
-Global Booking allows businesses to create their own booking page, configure services and availability, and manage appointment requests from a central dashboard.
+Global Booking allows businesses to create their own booking page, configure services and availability, and manage
+appointment requests from a central dashboard.
 
-The project is primarily designed as a learning project focused on microservices architecture, asynchronous communication, distributed systems, and scalable backend development.
+The project is primarily designed as a learning project focused on microservices architecture, asynchronous
+communication, distributed systems, and scalable backend development.
 
 ## Key Features
 
@@ -61,7 +64,8 @@ global-booking/
 └── .gitignore
 ```
 
-Each service is an independent Spring Boot application with its own domain, database, configuration, and deployment lifecycle.
+Each service is an independent Spring Boot application with its own domain, database, configuration, and deployment
+lifecycle.
 
 ## Installation & Getting Started
 
@@ -73,15 +77,16 @@ cd global-booking
 ```
 
 Start the infrastructure:
+
 ```bash
 docker compose up -d
 ```
 
 Run the required services individually from their respective directories:
+
 ```bash
 ./mvnw spring-boot:run
 ```
-
 
 ## Usage
 
