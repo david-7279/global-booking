@@ -29,9 +29,10 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final RefreshTokenService refreshTokenService;
 
     /**
-     * Registers a new user account.
+     * Registers a new user account and creates an authentication session.
      */
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -52,7 +53,9 @@ public class AuthService {
             );
         }
 
-        String passwordHash = passwordEncoder.encode(request.password());
+        String passwordHash = passwordEncoder.encode(
+                request.password()
+        );
 
         User user = new User(
                 username,
@@ -65,11 +68,18 @@ public class AuthService {
 
         String accessToken = jwtService.generateAccessToken(user);
 
-        log.info("User registered successfully");
+        String refreshToken =
+                refreshTokenService.createRefreshToken(user);
+
+        log.info(
+                "User registered successfully: {}",
+                user.getPublicId()
+        );
 
         return AuthMapper.toAuthResponse(
                 user,
                 accessToken,
+                refreshToken,
                 jwtService.getAccessTokenExpiration()
         );
     }
@@ -77,7 +87,7 @@ public class AuthService {
     /**
      * Authenticates a user using email and password.
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthResponse login(LoginRequest request) {
         String email = normalizeEmail(request.email());
 
@@ -99,19 +109,29 @@ public class AuthService {
             );
         }
 
-        String accessToken = jwtService.generateAccessToken(user);
+        String accessToken =
+                jwtService.generateAccessToken(user);
 
-        log.info("User authenticated successfully");
+        String refreshToken =
+                refreshTokenService.createRefreshToken(user);
+
+        log.info(
+                "User authenticated successfully: {}",
+                user.getPublicId()
+        );
 
         return AuthMapper.toAuthResponse(
                 user,
                 accessToken,
+                refreshToken,
                 jwtService.getAccessTokenExpiration()
         );
     }
 
     /**
      * Updates mutable user account fields.
+     * A new access and refresh token pair is issued after
+     * a successful account update.
      */
     @Transactional
     public AuthResponse update(
@@ -127,6 +147,7 @@ public class AuthService {
 
             if (!normalizedUsername.equals(user.getUsername())
                     && userRepository.existsByUsername(normalizedUsername)) {
+
                 throw new ConflictException(
                         ErrorCode.USER_ALREADY_EXISTS,
                         "Username is already in use"
@@ -141,6 +162,7 @@ public class AuthService {
 
             if (!normalizedEmail.equals(user.getEmail())
                     && userRepository.existsByEmail(normalizedEmail)) {
+
                 throw new ConflictException(
                         ErrorCode.USER_ALREADY_EXISTS,
                         "Email is already in use"
@@ -156,38 +178,57 @@ public class AuthService {
             );
         }
 
-        String accessToken = jwtService.generateAccessToken(user);
+        String accessToken =
+                jwtService.generateAccessToken(user);
 
-        log.info("User updated successfully");
+        String refreshToken =
+                refreshTokenService.createRefreshToken(user);
+
+        log.info(
+                "User updated successfully: {}",
+                user.getPublicId()
+        );
 
         return AuthMapper.toAuthResponse(
                 user,
                 accessToken,
+                refreshToken,
                 jwtService.getAccessTokenExpiration()
         );
     }
 
     /**
-     * Soft-deletes a user account.
+     * Soft-deletes a user account and revokes all refresh tokens.
      */
     @Transactional
     public void delete(UUID publicId) {
         User user = findByPublicId(publicId);
 
+        /*
+         * Revoke all refresh tokens before deleting the account.
+         * This prevents existing sessions from being refreshed.
+         */
+        refreshTokenService.revokeAll(user);
+
         userRepository.delete(user);
 
-        log.info("User account deleted successfully");
+        log.info(
+                "User account deleted successfully: {}",
+                publicId
+        );
     }
 
     /**
-     * Logs out the current user.
-     *
-     * Access tokens are stateless and remain valid until expiration.
-     * Token revocation will be handled when refresh-token persistence is introduced.
+     * Logs out the current session by revoking the supplied refresh token.
+     * Access tokens are stateless JWTs and cannot be invalidated directly.
+     * They remain valid until their configured expiration time.
+     * The refresh token, however, is persisted and can be revoked immediately.
      */
-    @Transactional(readOnly = true)
-    public void logout() {
-        log.info("User logout requested - Refresh token in development");
+    @Transactional
+    public void logout(String rawRefreshToken) {
+        refreshTokenService.revoke(rawRefreshToken);
+
+        log.info("User logout successfully processed");
     }
 
     private User findByPublicId(UUID publicId) {

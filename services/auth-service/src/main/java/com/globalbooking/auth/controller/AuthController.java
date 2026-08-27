@@ -1,10 +1,13 @@
 package com.globalbooking.auth.controller;
 
 import com.globalbooking.auth.dto.request.LoginRequest;
+import com.globalbooking.auth.dto.request.LogoutRequest;
+import com.globalbooking.auth.dto.request.RefreshRequest;
 import com.globalbooking.auth.dto.request.RegisterRequest;
 import com.globalbooking.auth.dto.response.AuthResponse;
 import com.globalbooking.auth.dto.response.UserResponse;
 import com.globalbooking.auth.service.AuthService;
+import com.globalbooking.auth.service.RefreshTokenService;
 import com.globalbooking.auth.service.SecurityService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +25,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final SecurityService securityService;
+    private final RefreshTokenService refreshTokenService;
 
     /**
      * Creates a new user account and authenticates the user.
@@ -38,7 +42,7 @@ public class AuthController {
     }
 
     /**
-     * Authenticates a user and returns an access token.
+     * Authenticates a user and returns access and refresh tokens.
      */
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(
@@ -50,14 +54,15 @@ public class AuthController {
     }
 
     /**
-     * Logs out the current user.
-     * <p>
-     * JWT access tokens are stateless and cannot be invalidated directly.
-     * Refresh-token revocation should be handled once refresh tokens are persisted.
+     * Revokes the supplied refresh token.
+     * The access token remains technically valid until its expiration,
+     * since access tokens are stateless JWTs.
      */
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout() {
-        authService.logout();
+    public ResponseEntity<Void> logout(
+            @Valid @RequestBody LogoutRequest request
+    ) {
+        authService.logout(request.refreshToken());
 
         return ResponseEntity.noContent().build();
     }
@@ -69,6 +74,15 @@ public class AuthController {
     public ResponseEntity<UserResponse> me() {
         return ResponseEntity.ok(
                 securityService.getAuthenticatedUserResponse()
+        );
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthResponse> refresh(
+            @Valid @RequestBody RefreshRequest request
+    ) {
+        return ResponseEntity.ok(
+                refreshTokenService.refresh(request.refreshToken())
         );
     }
 }
