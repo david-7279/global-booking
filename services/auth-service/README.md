@@ -51,16 +51,27 @@ auth-service/
 │   ├── main/
 │   │   ├── java/
 │   │   │   └── com/globalbooking/auth/
+│   │   │       ├── common/
+│   │   │       │   ├── error/              # Global API error handling
+│   │   │       │   └── exception/          # Application-specific exceptions
+│   │   │       ├── dto/
+│   │   │       │   ├── request/             # Incoming API request DTOs
+│   │   │       │   └── response/            # Outgoing API response DTOs
+│   │   │       ├── domain/                  # Core domain entities and enums
+│   │   │       └── repository/              # Data persistence and queries
+│   │   │
 │   │   └── resources/
-│   │       ├── application.yaml           # Base configuration (shared)
-│   │       ├── application-dev.yaml       # Development profile
-│   │       └── application-prod.yaml      # Production profile
+│   │       ├── application.yaml             # Base configuration
+│   │       ├── application-dev.yaml         # Development configuration
+│   │       ├── application-prod.yaml        # Production configuration
+│   │       └── db/
+│   │           └── migration/               # Flyway database migrations
 │   │
-│   └── test/
+│   └── test/                                # Unit and integration tests
 │
-├── Dockerfile                              # Multi-stage production-ready Docker image
-├── pom.xml
-└── README.md
+├── Dockerfile                               # Multi-stage production-ready image
+├── pom.xml                                  # Maven dependencies and build configuration
+└── README.md                                # Service documentation
 ```
 
 ## Configuration
