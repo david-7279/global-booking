@@ -6,12 +6,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.MDC;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -24,64 +21,80 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+    private static final String BEARER_PREFIX = "Bearer ";
+
     private final JwtService jwtService;
 
     @Override
     protected void doFilterInternal(
             HttpServletRequest request,
             HttpServletResponse response,
-            FilterChain filterChain) throws ServletException, IOException {
+            FilterChain filterChain
+    ) throws ServletException, IOException {
 
-        try {
-            final String authHeader = request.getHeader("Authorization");
+        String authorizationHeader =
+                request.getHeader("Authorization");
 
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                filterChain.doFilter(request, response);
-                return;
-            }
-
-            String token = authHeader.substring(7);
-
-            if (!jwtService.isTokenValid(token)) {
-                filterChain.doFilter(request, response);
-                return;
-            }
-
-            if (SecurityContextHolder.getContext().getAuthentication() == null) {
-
-                String role = jwtService.extractRole(token);
-                if (role == null || role.isBlank()) {
-                    filterChain.doFilter(request, response);
-                    return;
-                }
-
-                UUID publicId = jwtService.extractPublicId(token);
-                String normalizedRole = role.startsWith("ROLE_") ? role : "ROLE_" + role;
-
-                MDC.put("userId", publicId.toString());
-                MDC.put("userRole", role);
-                MDC.put("ip", request.getRemoteAddr());
-
-                List<GrantedAuthority> authorities =
-                        List.of(new SimpleGrantedAuthority(normalizedRole));
-
-                UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(
-                                publicId.toString(),
-                                null,
-                                authorities
-                        );
-
-                authToken.setDetails(
-                        new WebAuthenticationDetailsSource().buildDetails(request));
-
-                SecurityContextHolder.getContext().setAuthentication(authToken);
-            }
+        if (authorizationHeader == null
+                || !authorizationHeader.startsWith(BEARER_PREFIX)) {
 
             filterChain.doFilter(request, response);
-
-        } finally {
-            MDC.clear();
+            return;
         }
+
+        String token = authorizationHeader
+                .substring(BEARER_PREFIX.length())
+                .trim();
+
+        if (token.isBlank()) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        try {
+            /*
+             * Only access tokens may authenticate API requests.
+             *
+             * Refresh tokens are deliberately rejected here.
+             */
+            if (!jwtService.isAccessTokenValid(token)) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            UUID publicId = jwtService.extractPublicId(token);
+            String role = jwtService.extractRole(token);
+
+            var authorities = List.of(
+                    new SimpleGrantedAuthority("ROLE_" + role)
+            );
+
+            var authentication =
+                    new UsernamePasswordAuthenticationToken(
+                            publicId,
+                            null,
+                            authorities
+                    );
+
+            SecurityContextHolder
+                    .getContext()
+                    .setAuthentication(authentication);
+
+        } catch (Exception ex) {
+            /*
+             * Invalid JWTs must never authenticate the request.
+             *
+             * Spring Security will handle authorization afterwards.
+             */
+            SecurityContextHolder.clearContext();
+
+            log.debug(
+                    "JWT authentication failed for request {} {}",
+                    request.getMethod(),
+                    request.getRequestURI()
+            );
+        }
+
+        filterChain.doFilter(request, response);
     }
 }
