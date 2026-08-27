@@ -18,7 +18,17 @@ public record TokenResponse(
         String tokenType,
         long expiresIn
 ) {
-    public static TokenResponse of(String accessToken, long expiresInMs) {
-        return new TokenResponse(accessToken, "Bearer", expiresInMs / 1000);
+
+    private static final String BEARER = "Bearer";
+
+    public static TokenResponse of(
+            String accessToken,
+            long expiresInMs
+    ) {
+        return new TokenResponse(
+                accessToken,
+                BEARER,
+                expiresInMs / 1000
+        );
     }
 }
