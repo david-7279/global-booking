@@ -1,10 +1,10 @@
 package com.globalbooking.auth.infrastructure.jwt;
 
+import com.globalbooking.auth.domain.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.Jws;
-import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,11 +23,22 @@ public class JwtService {
     private final SecretKey secretKey;
 
     /**
+     * Generates an access token for the authenticated user.
+     */
+    public String generateAccessToken(User user) {
+        return generateAccessToken(
+                user.getPublicId(),
+                user.getRole().name()
+        );
+    }
+
+    /**
      * Generates an access token containing the user's public identity and role.
      */
-    public String generateAccessToken(UUID publicId, String role) {
+    private String generateAccessToken(UUID publicId, String role) {
         Instant now = Instant.now();
-        Instant expiration = now.plusMillis(jwtProperties.getAccessTokenExpiration());
+        Instant expiration =
+                now.plusMillis(jwtProperties.getAccessTokenExpiration());
 
         return Jwts.builder()
                 .id(UUID.randomUUID().toString())
@@ -45,9 +56,6 @@ public class JwtService {
 
     /**
      * Parses and validates a signed JWT.
-     *
-     * Issuer, audience, signature, structure, and expiration are validated
-     * before the claims are returned.
      */
     private Claims extractAllClaims(String token) {
         return Jwts.parser()
