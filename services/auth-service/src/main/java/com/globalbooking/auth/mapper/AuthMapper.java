@@ -31,6 +31,7 @@ public final class AuthMapper {
                 user.getUsername(),
                 user.getEmail(),
                 user.getRole(),
+                user.getStatus(),
                 user.getCreatedAt()
         );
     }

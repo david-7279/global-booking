@@ -1,6 +1,7 @@
 package com.globalbooking.auth.dto.response;
 
 import com.globalbooking.auth.domain.Role;
+import com.globalbooking.auth.domain.Status;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -13,6 +14,7 @@ public record UserResponse(
         String username,
         String email,
         Role role,
+        Status status,
         LocalDateTime createdAt
 ) {
 }
