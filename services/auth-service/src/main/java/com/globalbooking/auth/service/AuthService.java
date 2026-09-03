@@ -43,14 +43,14 @@ public class AuthService {
         if (userRepository.existsByUsername(username)) {
             throw new ConflictException(
                     ErrorCode.USER_ALREADY_EXISTS,
-                    "Username is already in use"
+                    "Update failed."
             );
         }
 
         if (userRepository.existsByEmail(email)) {
             throw new ConflictException(
                     ErrorCode.USER_ALREADY_EXISTS,
-                    "Email is already in use"
+                    "Update failed."
             );
         }
 
@@ -152,7 +152,7 @@ public class AuthService {
 
                 throw new ConflictException(
                         ErrorCode.USER_ALREADY_EXISTS,
-                        "Username is already in use"
+                        "Registration failed."
                 );
             }
 
@@ -167,7 +167,7 @@ public class AuthService {
 
                 throw new ConflictException(
                         ErrorCode.USER_ALREADY_EXISTS,
-                        "Email is already in use"
+                        "Registration failed."
                 );
             }
 
