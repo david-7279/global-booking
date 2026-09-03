@@ -47,6 +47,10 @@ public class User {
     @Column(name = "role", nullable = false, length = 50)
     private Role role;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 50)
+    private Status status;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -69,13 +73,15 @@ public class User {
             String username,
             String email,
             String passwordHash,
-            Role role
+            Role role,
+            Status status
     ) {
         this.publicId = UUID.randomUUID();
         this.username = username;
         this.email = email;
         this.passwordHash = passwordHash;
         this.role = role;
+        this.status = status;
     }
 
     // ──────────────────── DOMAIN METHODS ────────────────────
@@ -94,6 +100,10 @@ public class User {
 
     public void updateRole(Role role) {
         this.role = role;
+    }
+
+    public void updateStatus(Status status) {
+        this.status = status;
     }
 
     public boolean isDeleted() {
