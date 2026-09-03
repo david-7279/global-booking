@@ -5,6 +5,7 @@ import com.globalbooking.auth.common.exception.ConflictException;
 import com.globalbooking.auth.common.exception.ResourceNotFoundException;
 import com.globalbooking.auth.common.exception.UnauthorizedException;
 import com.globalbooking.auth.domain.Role;
+import com.globalbooking.auth.domain.Status;
 import com.globalbooking.auth.domain.User;
 import com.globalbooking.auth.dto.request.LoginRequest;
 import com.globalbooking.auth.dto.request.RegisterRequest;
@@ -61,7 +62,8 @@ public class AuthService {
                 username,
                 email,
                 passwordHash,
-                Role.USER
+                Role.USER,
+                Status.ACTIVE
         );
 
         userRepository.save(user);
