@@ -365,9 +365,17 @@ public class JwtService {
                     && expiration.after(new Date());
 
         } catch (ExpiredJwtException ex) {
-            log.debug("JWT validation failed: token expired");
+            log.atWarn()
+                    .setMessage("JWT validation failed")
+                    .addKeyValue("event", "invalid_jwt")
+                    .addKeyValue("reason", "expired")
+                    .log();
         } catch (JwtException | IllegalArgumentException ex) {
-            log.debug("JWT validation failed: invalid token");
+            log.atWarn()
+                    .setMessage("JWT validation failed")
+                    .addKeyValue("event", "invalid_jwt")
+                    .addKeyValue("reason", "invalid")
+                    .log();
         }
 
         return false;

@@ -36,11 +36,12 @@ public class CorsConfig {
 
         source.registerCorsConfiguration("/**", configuration);
 
-        log.info(
-                "CORS configured with {} allowed origin(s) and {} origin pattern(s)",
-                corsProperties.getAllowedOrigins().size(),
-                corsProperties.getAllowedOriginPatterns().size()
-        );
+        log.atInfo()
+                .setMessage("CORS configured")
+                .addKeyValue("event", "cors_configured")
+                .addKeyValue("allowed_origins", corsProperties.getAllowedOrigins().size())
+                .addKeyValue("allowed_origin_patterns", corsProperties.getAllowedOriginPatterns().size())
+                .log();
 
         return source;
     }

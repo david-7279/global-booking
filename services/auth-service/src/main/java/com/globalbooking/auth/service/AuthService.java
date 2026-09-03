@@ -73,10 +73,11 @@ public class AuthService {
         String refreshToken =
                 refreshTokenService.createRefreshToken(user);
 
-        log.info(
-                "User registered successfully: {}",
-                user.getPublicId()
-        );
+        log.atInfo()
+                .setMessage("User registered successfully")
+                .addKeyValue("event", "user_registered")
+                .addKeyValue("user_id", user.getPublicId())
+                .log();
 
         return AuthMapper.toAuthResponse(
                 user,
@@ -93,18 +94,32 @@ public class AuthService {
     public AuthResponse login(LoginRequest request) {
         String email = normalizeEmail(request.email());
 
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() ->
-                        new UnauthorizedException(
-                                ErrorCode.INVALID_CREDENTIALS,
-                                "Invalid credentials"
-                        )
-                );
+        var maybeUser = userRepository.findByEmail(email);
+        if (maybeUser.isEmpty()) {
+            log.atWarn()
+                    .setMessage("User login failed")
+                    .addKeyValue("event", "user_login_failed")
+                    .addKeyValue("email", email)
+                    .log();
+
+            throw new UnauthorizedException(
+                    ErrorCode.INVALID_CREDENTIALS,
+                    "Invalid credentials"
+            );
+        }
+
+        User user = maybeUser.get();
 
         if (!passwordEncoder.matches(
                 request.password(),
                 user.getPasswordHash()
         )) {
+            log.atWarn()
+                    .setMessage("User login failed")
+                    .addKeyValue("event", "user_login_failed")
+                    .addKeyValue("user_id", user.getPublicId())
+                    .log();
+
             throw new UnauthorizedException(
                     ErrorCode.INVALID_CREDENTIALS,
                     "Invalid credentials"
@@ -117,10 +132,11 @@ public class AuthService {
         String refreshToken =
                 refreshTokenService.createRefreshToken(user);
 
-        log.info(
-                "User authenticated successfully: {}",
-                user.getPublicId()
-        );
+        log.atInfo()
+                .setMessage("User login succeeded")
+                .addKeyValue("event", "user_login_succeeded")
+                .addKeyValue("user_id", user.getPublicId())
+                .log();
 
         return AuthMapper.toAuthResponse(
                 user,
@@ -186,10 +202,11 @@ public class AuthService {
         String refreshToken =
                 refreshTokenService.createRefreshToken(user);
 
-        log.info(
-                "User updated successfully: {}",
-                user.getPublicId()
-        );
+        log.atInfo()
+                .setMessage("User updated successfully")
+                .addKeyValue("event", "user_updated")
+                .addKeyValue("user_id", user.getPublicId())
+                .log();
 
         return AuthMapper.toAuthResponse(
                 user,
@@ -214,10 +231,11 @@ public class AuthService {
 
         userRepository.delete(user);
 
-        log.info(
-                "User account deleted successfully: {}",
-                publicId
-        );
+        log.atInfo()
+                .setMessage("User account deleted successfully")
+                .addKeyValue("event", "user_deleted")
+                .addKeyValue("user_id", publicId)
+                .log();
     }
 
     /**
@@ -230,7 +248,10 @@ public class AuthService {
     public void logout(String rawRefreshToken) {
         refreshTokenService.revoke(rawRefreshToken);
 
-        log.info("User logout successfully processed");
+        log.atInfo()
+                .setMessage("User logout processed")
+                .addKeyValue("event", "user_logged_out")
+                .log();
     }
 
     private User findByPublicId(UUID publicId) {

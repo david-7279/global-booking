@@ -121,11 +121,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
              */
             SecurityContextHolder.clearContext();
 
-            log.debug(
-                    "JWT authentication failed for {} {}",
-                    request.getMethod(),
-                    request.getRequestURI()
-            );
+            log.atWarn()
+                    .setMessage("JWT authentication failed")
+                    .addKeyValue("event", "invalid_jwt")
+                    .addKeyValue("method", request.getMethod())
+                    .addKeyValue("path", request.getRequestURI())
+                    .log();
         }
 
         filterChain.doFilter(request, response);

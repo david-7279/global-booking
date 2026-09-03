@@ -56,7 +56,10 @@ public class RefreshTokenService {
 
         refreshTokenRepository.save(refreshToken);
 
-        log.debug("Refresh token created for user {}", user.getPublicId());
+        log.atDebug()
+                .setMessage("Refresh token created for user")
+                .addKeyValue("user_id", user.getPublicId())
+                .log();
         return rawToken;
     }
 
@@ -103,7 +106,10 @@ public class RefreshTokenService {
 
         String accessToken = jwtService.generateAccessToken(user);
 
-        log.debug("Refresh token rotated for user {}", user.getPublicId());
+        log.atDebug()
+                .setMessage("Refresh token rotated for user")
+                .addKeyValue("user_id", user.getPublicId())
+                .log();
 
         return AuthMapper.toAuthResponse(
                 user,
@@ -129,10 +135,10 @@ public class RefreshTokenService {
                 .ifPresent(token -> {
                     if (!token.isRevoked()) {
                         token.revoke();
-                        log.debug(
-                                "Refresh token revoked for user {}",
-                                token.getUser().getPublicId()
-                        );
+                        log.atDebug()
+                                .setMessage("Refresh token revoked for user")
+                                .addKeyValue("user_id", token.getUser().getPublicId())
+                                .log();
                     }
                 });
     }
@@ -147,7 +153,11 @@ public class RefreshTokenService {
                 Instant.now(),
                 Instant.now()
         );
-        log.debug("Revoked {} refresh tokens for user {}", revoked, user.getPublicId());
+        log.atDebug()
+                .setMessage("Revoked {} refresh tokens for user")
+                .addKeyValue("revoked", revoked)
+                .addKeyValue("user_id", user.getPublicId())
+                .log();
     }
 
     @Transactional
@@ -166,7 +176,10 @@ public class RefreshTokenService {
     @Transactional
     public int deleteExpiredTokens() {
         int deleted = refreshTokenRepository.deleteExpiredTokens(Instant.now());
-        log.debug("Deleted {} expired refresh tokens", deleted);
+        log.atDebug()
+                .setMessage("Deleted {} expired refresh tokens")
+                .addKeyValue("deleted", deleted)
+                .log();
         return deleted;
     }
 
@@ -174,10 +187,11 @@ public class RefreshTokenService {
 
     private void validateRefreshToken(RefreshToken refreshToken) {
         if (refreshToken.isRevoked()) {
-            log.warn(
-                    "Attempt to reuse revoked refresh token for user {}",
-                    refreshToken.getUser().getPublicId()
-            );
+            log.atWarn()
+                    .setMessage("Attempt to reuse revoked refresh token")
+                    .addKeyValue("event", "token_refresh_failed")
+                    .addKeyValue("user_id", refreshToken.getUser().getPublicId())
+                    .log();
             throw invalidRefreshToken();
         }
         if (refreshToken.isExpired()) {
