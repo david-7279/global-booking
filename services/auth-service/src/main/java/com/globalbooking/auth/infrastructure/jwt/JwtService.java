@@ -21,6 +21,7 @@ public class JwtService {
 
     private static final String CLAIM_TOKEN_TYPE = "type";
     private static final String CLAIM_ROLE = "role";
+    private static final String CLAIM_STATUS = "status";
 
     private static final String ACCESS_TOKEN_TYPE = "access";
     private static final String REFRESH_TOKEN_TYPE = "refresh";
@@ -28,36 +29,47 @@ public class JwtService {
     private final JwtProperties jwtProperties;
     private final SecretKey secretKey;
 
+    // ──────────────────── TOKEN GENERATION ────────────────────
+
     /**
-     * Generates a JWT access token for the given user.
-     * Access tokens are short-lived and contain the user's public ID
-     * and role.
+     * Generates a short-lived JWT access token for the given user.
+     *
+     * The token contains:
+     * - subject: user's public ID
+     * - jti: unique token identifier
+     * - role: user's current role
+     * - status: user's status at token creation time
+     * - token type: access
+     * - issuer
+     * - audience
+     * - issued-at timestamp
+     * - expiration timestamp
      */
     public String generateAccessToken(User user) {
-        if (user == null) {
-            throw new IllegalArgumentException("User must not be null");
-        }
+        validateUser(user);
 
         return generateToken(
                 user.getPublicId(),
                 user.getRole().name(),
+                user.getStatus().name(),
                 ACCESS_TOKEN_TYPE,
                 jwtProperties.getAccessTokenExpiration()
         );
     }
 
     /**
-     * Generates a JWT refresh token for the given user.
-     * Refresh tokens are long-lived and contain only the information
-     * required to identify the user and the token itself.
+     * Generates a long-lived JWT refresh token for the given user.
+     *
+     * Refresh tokens intentionally contain no role or status claims.
+     * The user's current state must be resolved from the database when
+     * the refresh token is used.
      */
     public String generateRefreshToken(User user) {
-        if (user == null) {
-            throw new IllegalArgumentException("User must not be null");
-        }
+        validateUser(user);
 
         return generateToken(
                 user.getPublicId(),
+                null,
                 null,
                 REFRESH_TOKEN_TYPE,
                 jwtProperties.getRefreshTokenExpiration()
@@ -70,15 +82,20 @@ public class JwtService {
     private String generateToken(
             UUID publicId,
             String role,
+            String status,
             String tokenType,
             long expirationMs
     ) {
         if (publicId == null) {
-            throw new IllegalArgumentException("Public ID must not be null");
+            throw new IllegalArgumentException(
+                    "Public ID must not be null"
+            );
         }
 
         if (tokenType == null || tokenType.isBlank()) {
-            throw new IllegalArgumentException("Token type must not be blank");
+            throw new IllegalArgumentException(
+                    "Token type must not be blank"
+            );
         }
 
         if (expirationMs <= 0) {
@@ -87,8 +104,9 @@ public class JwtService {
             );
         }
 
-        Instant now = Instant.now();
-        Instant expiration = now.plusMillis(expirationMs);
+        Instant issuedAt = Instant.now();
+        Instant expiration = issuedAt.plusMillis(expirationMs);
+
         UUID tokenId = UUID.randomUUID();
 
         var builder = Jwts.builder()
@@ -99,7 +117,7 @@ public class JwtService {
                 .audience()
                 .add(jwtProperties.getAudience())
                 .and()
-                .issuedAt(Date.from(now))
+                .issuedAt(Date.from(issuedAt))
                 .expiration(Date.from(expiration))
                 .signWith(secretKey, Jwts.SIG.HS256);
 
@@ -107,15 +125,27 @@ public class JwtService {
             builder.claim(CLAIM_ROLE, role);
         }
 
+        if (status != null && !status.isBlank()) {
+            builder.claim(CLAIM_STATUS, status);
+        }
+
         return builder.compact();
     }
 
+    // ──────────────────── TOKEN PARSING ────────────────────
+
     /**
-     * Parses and validates a signed JWT.
-     * The signature, issuer, audience and standard JWT structure are
-     * validated by JJWT.
+     * Parses and cryptographically validates a JWT.
      *
-     * @throws JwtException if the token is invalid, expired or malformed
+     * Validation includes:
+     * - signature
+     * - issuer
+     * - audience
+     * - expiration
+     * - JWT structure
+     *
+     * The returned Claims object should be reused by callers whenever
+     * multiple claims need to be read from the same token.
      */
     private Claims extractAllClaims(String token) {
         if (token == null || token.isBlank()) {
@@ -132,11 +162,25 @@ public class JwtService {
     }
 
     /**
-     * Extracts the user's public identifier from the JWT subject.
+     * Parses and validates an access token.
+     *
+     * The JWT is cryptographically validated and its token type is
+     * verified before the claims are returned.
      */
-    public UUID extractPublicId(String token) {
+    public Claims parseAndValidateAccessToken(String token) {
         Claims claims = extractAllClaims(token);
 
+        requireAccessToken(claims);
+
+        return claims;
+    }
+
+    // ──────────────────── CLAIM EXTRACTION ────────────────────
+
+    /**
+     * Extracts the user's public identifier from a validated JWT.
+     */
+    public UUID extractPublicId(Claims claims) {
         String subject = claims.getSubject();
 
         if (subject == null || subject.isBlank()) {
@@ -146,18 +190,17 @@ public class JwtService {
         try {
             return UUID.fromString(subject);
         } catch (IllegalArgumentException ex) {
-            throw new JwtException("JWT subject is invalid", ex);
+            throw new JwtException(
+                    "JWT subject is invalid",
+                    ex
+            );
         }
     }
 
     /**
      * Extracts the JWT ID (jti).
-     * The JTI uniquely identifies an individual token and is used
-     * for refresh-token persistence and rotation.
      */
-    public UUID extractTokenId(String token) {
-        Claims claims = extractAllClaims(token);
-
+    public UUID extractTokenId(Claims claims) {
         String tokenId = claims.getId();
 
         if (tokenId == null || tokenId.isBlank()) {
@@ -167,94 +210,126 @@ public class JwtService {
         try {
             return UUID.fromString(tokenId);
         } catch (IllegalArgumentException ex) {
-            throw new JwtException("JWT ID is invalid");
+            throw new JwtException(
+                    "JWT ID is invalid",
+                    ex
+            );
         }
     }
 
     /**
-     * Extracts the token type.
-     * Valid values are:
-     * - access
-     * - refresh
+     * Extracts the token type from validated claims.
      */
-    public String extractTokenType(String token) {
-        String tokenType = extractAllClaims(token)
-                .get(CLAIM_TOKEN_TYPE, String.class);
+    public String extractTokenType(Claims claims) {
+        String tokenType = claims.get(
+                CLAIM_TOKEN_TYPE,
+                String.class
+        );
 
         if (tokenType == null || tokenType.isBlank()) {
-            throw new JwtException("JWT token type is missing");
+            throw new JwtException(
+                    "JWT token type is missing"
+            );
         }
 
         return tokenType;
     }
 
     /**
-     * Extracts the user's role from an access token.
+     * Extracts the role from an access token.
      */
-    public String extractRole(String token) {
-        Claims claims = extractAllClaims(token);
+    public String extractRole(Claims claims) {
+        requireTokenType(
+                claims,
+                ACCESS_TOKEN_TYPE
+        );
 
-        String tokenType = getTokenType(claims);
-
-        if (!ACCESS_TOKEN_TYPE.equals(tokenType)) {
-            throw new JwtException(
-                    "Role is only available for access tokens"
-            );
-        }
-
-        String role = claims.get(CLAIM_ROLE, String.class);
+        String role = claims.get(
+                CLAIM_ROLE,
+                String.class
+        );
 
         if (role == null || role.isBlank()) {
-            throw new JwtException("JWT role claim is missing");
+            throw new JwtException(
+                    "JWT role claim is missing"
+            );
         }
 
         return role;
     }
 
     /**
-     * Returns the token expiration timestamp.
+     * Extracts the status from an access token.
+     *
+     * Important:
+     * This represents the status when the token was issued.
+     * It must NOT be treated as the authoritative source of the
+     * user's current account status.
      */
-    public Instant extractExpiration(String token) {
-        Date expiration = extractAllClaims(token).getExpiration();
+    public String extractStatus(Claims claims) {
+        requireTokenType(
+                claims,
+                ACCESS_TOKEN_TYPE
+        );
+
+        String status = claims.get(
+                CLAIM_STATUS,
+                String.class
+        );
+
+        if (status == null || status.isBlank()) {
+            throw new JwtException(
+                    "JWT status claim is missing"
+            );
+        }
+
+        return status;
+    }
+
+    /**
+     * Returns the expiration timestamp from validated claims.
+     */
+    public Instant extractExpiration(Claims claims) {
+        Date expiration = claims.getExpiration();
 
         if (expiration == null) {
-            throw new JwtException("JWT expiration is missing");
+            throw new JwtException(
+                    "JWT expiration is missing"
+            );
         }
 
         return expiration.toInstant();
     }
 
-    /**
-     * Returns the configured access-token lifetime in milliseconds.
-     */
-    public long getAccessTokenExpiration() {
-        return jwtProperties.getAccessTokenExpiration();
-    }
-
-    /**
-     * Returns the configured refresh-token lifetime in milliseconds.
-     */
-    public long getRefreshTokenExpiration() {
-        return jwtProperties.getRefreshTokenExpiration();
-    }
+    // ──────────────────── TOKEN VALIDATION ────────────────────
 
     /**
      * Validates an access token.
-     * This method is intended for authentication filters.
-     * It does not expose validation details to the caller.
      */
     public boolean isAccessTokenValid(String token) {
-        return isTokenValid(token, ACCESS_TOKEN_TYPE);
+        return isTokenValid(
+                token,
+                ACCESS_TOKEN_TYPE
+        );
     }
 
     /**
      * Validates a refresh token.
-     * This validates the JWT itself. Persistence-level checks such as
-     * revocation and rotation are handled separately by the refresh-token
-     * service.
+     *
+     * This validates the JWT itself only.
+     * Persistence-level checks such as:
+     * - revocation
+     * - rotation
+     * - user status
+     * - token existence
+     *
+     * are handled by RefreshTokenService.
      */
     public boolean isRefreshTokenValid(String token) {
-        return isTokenValid(token, REFRESH_TOKEN_TYPE);
+        return isTokenValid(
+                token,
+                REFRESH_TOKEN_TYPE
+        );
     }
 
     /**
@@ -268,12 +343,17 @@ public class JwtService {
             return false;
         }
 
+        if (expectedTokenType == null
+                || expectedTokenType.isBlank()) {
+            return false;
+        }
+
         try {
             Claims claims = extractAllClaims(token);
 
             String subject = claims.getSubject();
             String tokenId = claims.getId();
-            String tokenType = getTokenType(claims);
+            String tokenType = extractTokenType(claims);
             Date expiration = claims.getExpiration();
 
             return subject != null
@@ -293,44 +373,79 @@ public class JwtService {
         return false;
     }
 
+    // ──────────────────── TOKEN TYPE REQUIREMENTS ────────────────────
+
     /**
-     * Verifies that a JWT is a refresh token.
-     * This method throws a JwtException instead of returning false,
-     * making it useful when processing /refresh.
+     * Requires the supplied JWT claims to represent a refresh token.
      */
-    public void requireRefreshToken(String token) {
-        Claims claims = extractAllClaims(token);
-
-        String tokenType = getTokenType(claims);
-
-        if (!REFRESH_TOKEN_TYPE.equals(tokenType)) {
-            throw new JwtException("JWT is not a refresh token");
-        }
+    public void requireRefreshToken(Claims claims) {
+        requireTokenType(
+                claims,
+                REFRESH_TOKEN_TYPE
+        );
     }
 
     /**
-     * Verifies that a JWT is an access token.
+     * Requires the supplied JWT claims to represent an access token.
      */
-    public void requireAccessToken(String token) {
-        Claims claims = extractAllClaims(token);
-
-        String tokenType = getTokenType(claims);
-
-        if (!ACCESS_TOKEN_TYPE.equals(tokenType)) {
-            throw new JwtException("JWT is not an access token");
-        }
+    public void requireAccessToken(Claims claims) {
+        requireTokenType(
+                claims,
+                ACCESS_TOKEN_TYPE
+        );
     }
 
     /**
-     * Extracts the token type from already validated claims.
+     * Verifies the token type contained in already validated claims.
      */
-    private String getTokenType(Claims claims) {
-        String tokenType = claims.get(CLAIM_TOKEN_TYPE, String.class);
+    private void requireTokenType(
+            Claims claims,
+            String expectedTokenType
+    ) {
+        String actualTokenType = extractTokenType(claims);
 
-        if (tokenType == null || tokenType.isBlank()) {
-            throw new JwtException("JWT token type is missing");
+        if (!expectedTokenType.equals(actualTokenType)) {
+            throw new JwtException(
+                    "JWT is not a " + expectedTokenType + " token"
+            );
+        }
+    }
+
+    // ──────────────────── CONFIGURATION ────────────────────
+
+    public long getAccessTokenExpiration() {
+        return jwtProperties.getAccessTokenExpiration();
+    }
+
+    public long getRefreshTokenExpiration() {
+        return jwtProperties.getRefreshTokenExpiration();
+    }
+
+    // ──────────────────── INTERNAL VALIDATION ────────────────────
+
+    private void validateUser(User user) {
+        if (user == null) {
+            throw new IllegalArgumentException(
+                    "User must not be null"
+            );
         }
 
-        return tokenType;
+        if (user.getPublicId() == null) {
+            throw new IllegalArgumentException(
+                    "User public ID must not be null"
+            );
+        }
+
+        if (user.getRole() == null) {
+            throw new IllegalArgumentException(
+                    "User role must not be null"
+            );
+        }
+
+        if (user.getStatus() == null) {
+            throw new IllegalArgumentException(
+                    "User status must not be null"
+            );
+        }
     }
 }

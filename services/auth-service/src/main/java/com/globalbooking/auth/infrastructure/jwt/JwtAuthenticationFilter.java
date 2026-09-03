@@ -1,5 +1,7 @@
 package com.globalbooking.auth.infrastructure.jwt;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -35,6 +37,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String authorizationHeader =
                 request.getHeader("Authorization");
 
+        /*
+         * Requests without an Authorization header are allowed to
+         * continue through the filter chain.
+         *
+         * Public endpoints can therefore be accessed without a JWT,
+         * while protected endpoints will be rejected later by
+         * Spring Security.
+         */
         if (authorizationHeader == null
                 || !authorizationHeader.startsWith(BEARER_PREFIX)) {
 
@@ -46,6 +56,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 .substring(BEARER_PREFIX.length())
                 .trim();
 
+        /*
+         * "Bearer " without a token is not a valid authentication
+         * attempt. Continue without authentication.
+         */
         if (token.isBlank()) {
             filterChain.doFilter(request, response);
             return;
@@ -53,20 +67,36 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             /*
-             * Only access tokens may authenticate API requests.
+             * Parse and cryptographically validate the JWT exactly once.
              *
-             * Refresh tokens are deliberately rejected here.
+             * The returned claims are then reused to extract the
+             * subject, role, status and token type.
              */
-            if (!jwtService.isAccessTokenValid(token)) {
-                filterChain.doFilter(request, response);
-                return;
-            }
+            Claims claims = jwtService.parseAndValidateAccessToken(token);
 
-            UUID publicId = jwtService.extractPublicId(token);
-            String role = jwtService.extractRole(token);
+            /*
+             * The parser method already validates the token type,
+             * but requireAccessToken() keeps this security invariant
+             * explicit at the filter boundary.
+             */
+            jwtService.requireAccessToken(claims);
+
+            UUID publicId =
+                    jwtService.extractPublicId(claims);
+
+            String role =
+                    jwtService.extractRole(claims);
+
+            String status =
+                    jwtService.extractStatus(claims);
 
             var authorities = List.of(
-                    new SimpleGrantedAuthority("ROLE_" + role)
+                    new SimpleGrantedAuthority(
+                            "ROLE_" + role
+                    ),
+                    new SimpleGrantedAuthority(
+                            "STATUS_" + status
+                    )
             );
 
             var authentication =
@@ -80,16 +110,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     .getContext()
                     .setAuthentication(authentication);
 
-        } catch (Exception ex) {
+        } catch (JwtException | IllegalArgumentException ex) {
+
             /*
-             * Invalid JWTs must never authenticate the request.
+             * Invalid, expired, malformed or incorrectly typed JWTs
+             * must never authenticate the request.
              *
-             * Spring Security will handle authorization afterwards.
+             * We deliberately do not expose the reason to the client.
+             * Spring Security will subsequently handle authorization.
              */
             SecurityContextHolder.clearContext();
 
             log.debug(
-                    "JWT authentication failed for request {} {}",
+                    "JWT authentication failed for {} {}",
                     request.getMethod(),
                     request.getRequestURI()
             );
