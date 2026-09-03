@@ -5,6 +5,7 @@ import com.globalbooking.auth.common.exception.ConflictException;
 import com.globalbooking.auth.common.exception.ResourceNotFoundException;
 import com.globalbooking.auth.common.exception.UnauthorizedException;
 import com.globalbooking.auth.domain.Role;
+import com.globalbooking.auth.domain.Status;
 import com.globalbooking.auth.domain.User;
 import com.globalbooking.auth.dto.request.LoginRequest;
 import com.globalbooking.auth.dto.request.RegisterRequest;
@@ -29,9 +30,10 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final RefreshTokenService refreshTokenService;
 
     /**
-     * Registers a new user account.
+     * Registers a new user account and creates an authentication session.
      */
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -41,35 +43,46 @@ public class AuthService {
         if (userRepository.existsByUsername(username)) {
             throw new ConflictException(
                     ErrorCode.USER_ALREADY_EXISTS,
-                    "Username is already in use"
+                    "Update failed."
             );
         }
 
         if (userRepository.existsByEmail(email)) {
             throw new ConflictException(
                     ErrorCode.USER_ALREADY_EXISTS,
-                    "Email is already in use"
+                    "Update failed."
             );
         }
 
-        String passwordHash = passwordEncoder.encode(request.password());
+        String passwordHash = passwordEncoder.encode(
+                request.password()
+        );
 
         User user = new User(
                 username,
                 email,
                 passwordHash,
-                Role.USER
+                Role.USER,
+                Status.ACTIVE
         );
 
         userRepository.save(user);
 
         String accessToken = jwtService.generateAccessToken(user);
 
-        log.info("User registered successfully");
+        String refreshToken =
+                refreshTokenService.createRefreshToken(user);
+
+        log.atInfo()
+                .setMessage("User registered successfully")
+                .addKeyValue("event", "user_registered")
+                .addKeyValue("user_id", user.getPublicId())
+                .log();
 
         return AuthMapper.toAuthResponse(
                 user,
                 accessToken,
+                refreshToken,
                 jwtService.getAccessTokenExpiration()
         );
     }
@@ -77,41 +90,66 @@ public class AuthService {
     /**
      * Authenticates a user using email and password.
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthResponse login(LoginRequest request) {
         String email = normalizeEmail(request.email());
 
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() ->
-                        new UnauthorizedException(
-                                ErrorCode.INVALID_CREDENTIALS,
-                                "Invalid credentials"
-                        )
-                );
+        var maybeUser = userRepository.findByEmail(email);
+        if (maybeUser.isEmpty()) {
+            log.atWarn()
+                    .setMessage("User login failed")
+                    .addKeyValue("event", "user_login_failed")
+                    .addKeyValue("email", email)
+                    .log();
 
-        if (!passwordEncoder.matches(
-                request.password(),
-                user.getPasswordHash()
-        )) {
             throw new UnauthorizedException(
                     ErrorCode.INVALID_CREDENTIALS,
                     "Invalid credentials"
             );
         }
 
-        String accessToken = jwtService.generateAccessToken(user);
+        User user = maybeUser.get();
 
-        log.info("User authenticated successfully");
+        if (!passwordEncoder.matches(
+                request.password(),
+                user.getPasswordHash()
+        )) {
+            log.atWarn()
+                    .setMessage("User login failed")
+                    .addKeyValue("event", "user_login_failed")
+                    .addKeyValue("user_id", user.getPublicId())
+                    .log();
+
+            throw new UnauthorizedException(
+                    ErrorCode.INVALID_CREDENTIALS,
+                    "Invalid credentials"
+            );
+        }
+
+        String accessToken =
+                jwtService.generateAccessToken(user);
+
+        String refreshToken =
+                refreshTokenService.createRefreshToken(user);
+
+        log.atInfo()
+                .setMessage("User login succeeded")
+                .addKeyValue("event", "user_login_succeeded")
+                .addKeyValue("user_id", user.getPublicId())
+                .log();
 
         return AuthMapper.toAuthResponse(
                 user,
                 accessToken,
+                refreshToken,
                 jwtService.getAccessTokenExpiration()
         );
     }
 
     /**
      * Updates mutable user account fields.
+     * A new access and refresh token pair is issued after
+     * a successful account update.
      */
     @Transactional
     public AuthResponse update(
@@ -127,9 +165,10 @@ public class AuthService {
 
             if (!normalizedUsername.equals(user.getUsername())
                     && userRepository.existsByUsername(normalizedUsername)) {
+
                 throw new ConflictException(
                         ErrorCode.USER_ALREADY_EXISTS,
-                        "Username is already in use"
+                        "Registration failed."
                 );
             }
 
@@ -141,9 +180,10 @@ public class AuthService {
 
             if (!normalizedEmail.equals(user.getEmail())
                     && userRepository.existsByEmail(normalizedEmail)) {
+
                 throw new ConflictException(
                         ErrorCode.USER_ALREADY_EXISTS,
-                        "Email is already in use"
+                        "Registration failed."
                 );
             }
 
@@ -156,38 +196,62 @@ public class AuthService {
             );
         }
 
-        String accessToken = jwtService.generateAccessToken(user);
+        String accessToken =
+                jwtService.generateAccessToken(user);
 
-        log.info("User updated successfully");
+        String refreshToken =
+                refreshTokenService.createRefreshToken(user);
+
+        log.atInfo()
+                .setMessage("User updated successfully")
+                .addKeyValue("event", "user_updated")
+                .addKeyValue("user_id", user.getPublicId())
+                .log();
 
         return AuthMapper.toAuthResponse(
                 user,
                 accessToken,
+                refreshToken,
                 jwtService.getAccessTokenExpiration()
         );
     }
 
     /**
-     * Soft-deletes a user account.
+     * Soft-deletes a user account and revokes all refresh tokens.
      */
     @Transactional
     public void delete(UUID publicId) {
         User user = findByPublicId(publicId);
 
+        /*
+         * Revoke all refresh tokens before deleting the account.
+         * This prevents existing sessions from being refreshed.
+         */
+        refreshTokenService.revokeAll(user);
+
         userRepository.delete(user);
 
-        log.info("User account deleted successfully");
+        log.atInfo()
+                .setMessage("User account deleted successfully")
+                .addKeyValue("event", "user_deleted")
+                .addKeyValue("user_id", publicId)
+                .log();
     }
 
     /**
-     * Logs out the current user.
-     *
-     * Access tokens are stateless and remain valid until expiration.
-     * Token revocation will be handled when refresh-token persistence is introduced.
+     * Logs out the current session by revoking the supplied refresh token.
+     * Access tokens are stateless JWTs and cannot be invalidated directly.
+     * They remain valid until their configured expiration time.
+     * The refresh token, however, is persisted and can be revoked immediately.
      */
-    @Transactional(readOnly = true)
-    public void logout() {
-        log.info("User logout requested - Refresh token in development");
+    @Transactional
+    public void logout(String rawRefreshToken) {
+        refreshTokenService.revoke(rawRefreshToken);
+
+        log.atInfo()
+                .setMessage("User logout processed")
+                .addKeyValue("event", "user_logged_out")
+                .log();
     }
 
     private User findByPublicId(UUID publicId) {

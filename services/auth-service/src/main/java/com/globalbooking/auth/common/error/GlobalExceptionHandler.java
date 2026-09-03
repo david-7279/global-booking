@@ -31,11 +31,11 @@ public class GlobalExceptionHandler {
             AuthException ex,
             HttpServletRequest request
     ) {
-        log.warn(
-                "Application error: code={}, path={}",
-                ex.getErrorCode(),
-                request.getRequestURI()
-        );
+        log.atWarn()
+                .setMessage("Application error")
+                .addKeyValue("event", ex.getErrorCode().name())
+                .addKeyValue("path", request.getRequestURI())
+                .log();
 
         ApiError error = buildError(
                 ex.getErrorCode(),
@@ -64,11 +64,12 @@ public class GlobalExceptionHandler {
                 .map(this::mapFieldError)
                 .toList();
 
-        log.debug(
-                "Validation error: path={}, fields={}",
-                request.getRequestURI(),
-                details.size()
-        );
+        log.atDebug()
+                .setMessage("Validation error")
+                .addKeyValue("event", "validation_error")
+                .addKeyValue("path", request.getRequestURI())
+                .addKeyValue("field_errors", details.size())
+                .log();
 
         ApiError error = buildError(
                 ErrorCode.VALIDATION_ERROR,
@@ -91,10 +92,11 @@ public class GlobalExceptionHandler {
             HttpMessageNotReadableException ex,
             HttpServletRequest request
     ) {
-        log.debug(
-                "Malformed request body: path={}",
-                request.getRequestURI()
-        );
+        log.atDebug()
+                .setMessage("Malformed request body")
+                .addKeyValue("event", "invalid_request")
+                .addKeyValue("path", request.getRequestURI())
+                .log();
 
         ApiError error = buildError(
                 ErrorCode.INVALID_REQUEST,
@@ -117,11 +119,12 @@ public class GlobalExceptionHandler {
             AuthenticationException ex,
             HttpServletRequest request
     ) {
-        log.warn(
-                "Authentication failed: path={}, type={}",
-                request.getRequestURI(),
-                ex.getClass().getSimpleName()
-        );
+        log.atWarn()
+                .setMessage("Authentication failed")
+                .addKeyValue("event", "authentication_failed")
+                .addKeyValue("path", request.getRequestURI())
+                .addKeyValue("failure_type", ex.getClass().getSimpleName())
+                .log();
 
         ApiError error = buildError(
                 ErrorCode.AUTHENTICATION_FAILED,
@@ -144,11 +147,12 @@ public class GlobalExceptionHandler {
             AuthenticationServiceException ex,
             HttpServletRequest request
     ) {
-        log.error(
-                "Authentication service error: path={}",
-                request.getRequestURI(),
-                ex
-        );
+        log.atError()
+                .setMessage("Authentication service error")
+                .addKeyValue("event", "authentication_failed")
+                .addKeyValue("path", request.getRequestURI())
+                .setCause(ex)
+                .log();
 
         return buildInternalServerError(request);
     }
@@ -161,10 +165,11 @@ public class GlobalExceptionHandler {
             AccessDeniedException ex,
             HttpServletRequest request
     ) {
-        log.warn(
-                "Access denied: path={}",
-                request.getRequestURI()
-        );
+        log.atWarn()
+                .setMessage("Access denied")
+                .addKeyValue("event", "access_denied")
+                .addKeyValue("path", request.getRequestURI())
+                .log();
 
         ApiError error = buildError(
                 ErrorCode.ACCESS_DENIED,
@@ -187,11 +192,12 @@ public class GlobalExceptionHandler {
             HttpRequestMethodNotSupportedException ex,
             HttpServletRequest request
     ) {
-        log.debug(
-                "HTTP method not supported: method={}, path={}",
-                request.getMethod(),
-                request.getRequestURI()
-        );
+        log.atDebug()
+                .setMessage("HTTP method not supported")
+                .addKeyValue("event", "invalid_request")
+                .addKeyValue("method", request.getMethod())
+                .addKeyValue("path", request.getRequestURI())
+                .log();
 
         ApiError error = buildError(
                 ErrorCode.INVALID_REQUEST,
@@ -218,13 +224,14 @@ public class GlobalExceptionHandler {
     ) {
         String traceId = UUID.randomUUID().toString();
 
-        log.error(
-                "Unexpected error: traceId={}, method={}, path={}",
-                traceId,
-                request.getMethod(),
-                request.getRequestURI(),
-                ex
-        );
+        log.atError()
+                .setMessage("Unexpected error")
+                .addKeyValue("event", "internal_error")
+                .addKeyValue("trace_id", traceId)
+                .addKeyValue("method", request.getMethod())
+                .addKeyValue("path", request.getRequestURI())
+                .setCause(ex)
+                .log();
 
         ApiError error = new ApiError(
                 Instant.now(),
