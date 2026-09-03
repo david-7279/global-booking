@@ -98,14 +98,6 @@ public class User {
         this.passwordHash = passwordHash;
     }
 
-    public void updateRole(Role role) {
-        this.role = role;
-    }
-
-    public void updateStatus(Status status) {
-        this.status = status;
-    }
-
     public boolean isDeleted() {
         return deletedAt != null;
     }
