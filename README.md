@@ -79,32 +79,57 @@ git clone https://github.com/<username>/global-booking.git
 cd global-booking
 ```
 
-Copy the environment variables file:
+### Copy the environment variables file:
 
 ```bash
 cp infrastructure/.env.example infrastructure/.env
 ```
 
-Build and start everything:
+### Build and start everything:
 
 ```bash
 docker compose --env-file infrastructure/.env -f infrastructure/docker-compose-dev.yml up -d --build
 ````
 
-Check status of the services:
+### Check status of the services:
+
+#### Check the docker containers
 
 ```bash
 docker compose --env-file infrastructure/.env -f infrastructure/docker-compose-dev.yml ps
+```
+
+#### Check the logs of the auth-service
+
+```bash
 docker compose --env-file infrastructure/.env -f infrastructure/docker-compose-dev.yml logs -f auth-service
 ```
 
-Stop everything
+#### Check the status of RabbitMQ
+
+```bash
+docker compose --env-file infrastructure/.env -f infrastructure/docker-compose-dev.yml  ps rabbitmq
+```
+
+#### Check the health of RabbitMQ
+
+```bash
+docker inspect --format='{{json .State.Health}}' global-booking-rabbitmq
+```
+
+#### RabbitMQ Management UI
+
+```text
+http://localhost:15672
+```
+
+### Stop everything
 
 ```bash
 docker compose --env-file infrastructure/.env -f infrastructure/docker-compose-dev.yml down
 ```
 
-Stop and reset databases (REMOVE ALL DATA)
+### Stop and reset databases (REMOVE ALL DATA)
 
 ```bash
 docker compose --env-file infrastructure/.env -f infrastructure/docker-compose-dev.yml down -v
