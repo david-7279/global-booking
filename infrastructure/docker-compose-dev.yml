@@ -4,16 +4,16 @@ services:
     container_name: global-booking-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: globalbooking
-      POSTGRES_PASSWORD: secret
-      POSTGRES_DB: postgres
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
     ports:
-      - "5433:5432"
+      - "5434:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U globalbooking -d postgres" ]
+      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}" ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -30,24 +30,27 @@ services:
     ports:
       - "8080:8080"
     environment:
-      # Spring Profile
       SPRING_PROFILES_ACTIVE: dev
-      # Database
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: auth_service
-      DB_USERNAME: globalbooking
-      DB_PASSWORD: secret
-      # JWT
-      JWT_SECRET: dev-secret-256bits-min-length-for-HS256-algorithm-do-not-use-in-prod
-      # Logging
+      DB_NAME: ${DB_NAME:?DB_NAME is required}
+      DB_USERNAME: ${DB_USERNAME:?DB_USERNAME is required}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-20}
+      DB_POOL_MIN_IDLE: ${DB_POOL_MIN_IDLE:-5}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_ISSUER: ${JWT_ISSUER:?JWT_ISSUER is required}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:?JWT_AUDIENCE is required}
+      ACCESS_TOKEN_EXPIRATION: ${ACCESS_TOKEN_EXPIRATION:-900000}
+      REFRESH_TOKEN_EXPIRATION: ${REFRESH_TOKEN_EXPIRATION:-604800000}
+      CORS_ALLOWED_ORIGINS: http://localhost:3000,http://localhost:5173,http://localhost:8080
       LOGGING_LEVEL_ROOT: INFO
       LOGGING_LEVEL_COM_GLOBALBOOKING: DEBUG
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health/liveness" ]
       interval: 15s
       timeout: 5s
       retries: 5

@@ -56,7 +56,10 @@ global-booking/
 │   └── api-gateway/
 │
 ├── infrastructure/
+│   ├── .env.example
 │   ├── docker-compose.yml
+│   ├── docker-compose-dev.yml
+│   └── init-databases.sql
 │   └── rabbitmq/
 │
 ├── docs/
@@ -76,16 +79,35 @@ git clone https://github.com/<username>/global-booking.git
 cd global-booking
 ```
 
-Start the infrastructure:
+Copy the environment variables file:
 
 ```bash
-docker compose up -d
+cp infrastructure/.env.example infrastructure/.env
 ```
 
-Run the required services individually from their respective directories:
+Build and start everything:
 
 ```bash
-./mvnw spring-boot:run
+docker compose --env-file infrastructure/.env -f infrastructure/docker-compose-dev.yml up -d --build
+````
+
+Check status of the services:
+
+```bash
+docker compose --env-file infrastructure/.env -f infrastructure/docker-compose-dev.yml ps
+docker compose --env-file infrastructure/.env -f infrastructure/docker-compose-dev.yml logs -f auth-service
+```
+
+Stop everything
+
+```bash
+docker compose --env-file infrastructure/.env -f infrastructure/docker-compose-dev.yml down
+```
+
+Stop and reset databases (REMOVE ALL DATA)
+
+```bash
+docker compose --env-file infrastructure/.env -f infrastructure/docker-compose-dev.yml down -v
 ```
 
 ## Usage
