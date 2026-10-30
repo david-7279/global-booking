@@ -44,14 +44,17 @@ spring:
 management:
   endpoints:
     web:
-      exposure: include=health,metrics,info
+      exposure:
+        include: health,metrics,info
       base-path: /actuator
   endpoint:
     health:
+      probes:
+        enabled: true
       show-details: when-authorized
-  metrics:
-    export:
-      prometheus:
+  prometheus:
+    metrics:
+      export:
         enabled: true
 
 app:
@@ -75,6 +78,7 @@ logging:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
   file:
     name: /var/log/auth-service/app.log
-    max-size: 10MB
-    max-history: 30
-    total-size-cap: 1GB
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      total-size-cap: 1GB

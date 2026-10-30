@@ -110,6 +110,13 @@ public class AuthService {
 
         User user = maybeUser.get();
 
+        if (user.getStatus() != Status.ACTIVE) {
+            throw new UnauthorizedException(
+                    ErrorCode.INVALID_CREDENTIALS,
+                    "Invalid credentials"
+            );
+        }
+
         if (!passwordEncoder.matches(
                 request.password(),
                 user.getPasswordHash()
