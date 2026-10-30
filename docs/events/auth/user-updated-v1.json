@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://global-booking.local/events/auth/user-updated-v1.json",
+  "title": "UserUpdated v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventId",
+    "eventType",
+    "eventVersion",
+    "occurredAt",
+    "producer",
+    "aggregateType",
+    "aggregateId",
+    "data"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "eventType": {
+      "const": "UserUpdated"
+    },
+    "eventVersion": {
+      "const": 1
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "producer": {
+      "const": "auth-service"
+    },
+    "aggregateType": {
+      "const": "User"
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "correlationId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "userId",
+        "username",
+        "email",
+        "role",
+        "status"
+      ],
+      "properties": {
+        "userId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "username": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "USER",
+            "BUSINESS_OWNER",
+            "ADMIN"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "ACTIVE",
+            "SUSPENDED",
+            "BANNED"
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://global-booking.local/events/auth/user-deleted-v1.json",
+  "title": "UserDeleted v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventId",
+    "eventType",
+    "eventVersion",
+    "occurredAt",
+    "producer",
+    "aggregateType",
+    "aggregateId",
+    "data"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "eventType": {
+      "const": "UserDeleted"
+    },
+    "eventVersion": {
+      "const": 1
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "producer": {
+      "const": "auth-service"
+    },
+    "aggregateType": {
+      "const": "User"
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "correlationId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "userId",
+        "deletedAt"
+      ],
+      "properties": {
+        "userId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "deletedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}
