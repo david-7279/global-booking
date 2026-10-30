@@ -11,6 +11,7 @@ import com.globalbooking.auth.dto.request.LoginRequest;
 import com.globalbooking.auth.dto.request.RegisterRequest;
 import com.globalbooking.auth.dto.response.AuthResponse;
 import com.globalbooking.auth.infrastructure.jwt.JwtService;
+import com.globalbooking.auth.infrastructure.messaging.UserEventPublisher;
 import com.globalbooking.auth.mapper.AuthMapper;
 import com.globalbooking.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
+    private final UserEventPublisher userEventPublisher;
 
     /**
      * Registers a new user account and creates an authentication session.
@@ -67,6 +69,9 @@ public class AuthService {
         );
 
         userRepository.save(user);
+
+        // Saved in the same transaction as the user. RabbitMQ is not called here.
+        userEventPublisher.recordUserRegistered(user);
 
         String accessToken = jwtService.generateAccessToken(user);
 
