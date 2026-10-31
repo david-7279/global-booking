@@ -14,13 +14,13 @@ import com.globalbooking.auth.infrastructure.jwt.JwtService;
 import com.globalbooking.auth.infrastructure.messaging.UserEventPublisher;
 import com.globalbooking.auth.mapper.AuthMapper;
 import com.globalbooking.auth.repository.UserRepository;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -172,6 +172,7 @@ public class AuthService {
             String password
     ) {
         User user = findByPublicId(publicId);
+        boolean changed = false;
 
         if (username != null && !username.isBlank()) {
             String normalizedUsername = username.trim();
@@ -186,6 +187,7 @@ public class AuthService {
             }
 
             user.updateUsername(normalizedUsername);
+            changed = true;
         }
 
         if (email != null && !email.isBlank()) {
@@ -201,12 +203,19 @@ public class AuthService {
             }
 
             user.updateEmail(normalizedEmail);
+            changed = true;
         }
 
         if (password != null && !password.isBlank()) {
             user.updatePasswordHash(
                     passwordEncoder.encode(password)
             );
+            changed = true;
+        }
+
+        if (changed) {
+            // Stored in the same transaction as the User update.
+            userEventPublisher.recordUserUpdated(user);
         }
 
         String accessToken =
@@ -242,6 +251,9 @@ public class AuthService {
          */
         refreshTokenService.revokeAll(user);
 
+        // Capture the public data before the soft-delete is applied.
+        userEventPublisher.recordUserDeleted(user, Instant.now());
+
         userRepository.delete(user);
 
         log.atInfo()
@@ -265,6 +277,20 @@ public class AuthService {
                 .setMessage("User logout processed")
                 .addKeyValue("event", "user_logged_out")
                 .log();
+    }
+
+    /**
+     * Changes a user's status and records the old and new values in one
+     * transaction. This method can later be called by an admin endpoint.
+     */
+    @Transactional
+    public void changeStatus(UUID publicId, Status newStatus) {
+        User user = findByPublicId(publicId);
+        Status previousStatus = user.changeStatus(newStatus);
+
+        if (previousStatus != newStatus) {
+            userEventPublisher.recordUserStatusChanged(user, previousStatus);
+        }
     }
 
     private User findByPublicId(UUID publicId) {

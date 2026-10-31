@@ -1,5 +1,6 @@
 package com.globalbooking.auth.infrastructure.messaging;
 
+import com.globalbooking.auth.domain.Status;
 import com.globalbooking.auth.domain.User;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.globalbooking.auth.infrastructure.outbox.OutboxEventService;
@@ -10,25 +11,25 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Converts a user-domain change into the public integration-event contract.
+ * Converts user-domain changes into the public integration-event contracts.
+ * <p>
+ * This class never publishes directly to RabbitMQ. It writes an event to the
+ * outbox so the caller's database transaction remains atomic.
  */
 @Component
 @RequiredArgsConstructor
 public class UserEventPublisher {
 
-    private static final String EVENT_TYPE = "UserRegistered";
-    private static final String ROUTING_KEY = "auth.user.registered";
+    private static final String PRODUCER = "auth-service";
+    private static final String AGGREGATE_TYPE = "User";
+    private static final int EVENT_VERSION = 1;
 
     private final OutboxEventService outboxEventService;
 
     public void recordUserRegistered(User user) {
-        UserRegisteredEvent event = new UserRegisteredEvent(
-                UUID.randomUUID(),
-                EVENT_TYPE,
-                1,
-                Instant.now(),
-                "auth-service",
-                "User",
+        record(
+                "UserRegistered",
+                "auth.user.registered",
                 user.getPublicId(),
                 new UserRegisteredData(
                         user.getPublicId(),
@@ -37,12 +38,70 @@ public class UserEventPublisher {
                         user.getStatus().name()
                 )
         );
+    }
 
-        outboxEventService.save(EVENT_TYPE, ROUTING_KEY, event);
+    public void recordUserUpdated(User user) {
+        record(
+                "UserUpdated",
+                "auth.user.updated",
+                user.getPublicId(),
+                new UserUpdatedData(
+                        user.getPublicId(),
+                        user.getUsername(),
+                        user.getEmail(),
+                        user.getRole().name(),
+                        user.getStatus().name()
+                )
+        );
+    }
+
+    public void recordUserDeleted(User user, Instant deletedAt) {
+        record(
+                "UserDeleted",
+                "auth.user.deleted",
+                user.getPublicId(),
+                new UserDeletedData(user.getPublicId(), deletedAt)
+        );
+    }
+
+    public void recordUserStatusChanged(
+            User user,
+            Status previousStatus
+    ) {
+        record(
+                "UserStatusChanged",
+                "auth.user.status-changed",
+                user.getPublicId(),
+                new UserStatusChangedData(
+                        user.getPublicId(),
+                        previousStatus.name(),
+                        user.getStatus().name()
+                )
+        );
+    }
+
+    private void record(
+            String eventType,
+            String routingKey,
+            UUID aggregateId,
+            Object data
+    ) {
+        EventEnvelope event = new EventEnvelope(
+                UUID.randomUUID(),
+                eventType,
+                EVENT_VERSION,
+                Instant.now(),
+                PRODUCER,
+                AGGREGATE_TYPE,
+                aggregateId,
+                data
+        );
+
+        outboxEventService.save(eventType, routingKey, event);
     }
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    private record UserRegisteredEvent(
+    private record EventEnvelope(
             UUID eventId,
             String eventType,
             int eventVersion,
@@ -50,7 +109,7 @@ public class UserEventPublisher {
             String producer,
             String aggregateType,
             UUID aggregateId,
-            UserRegisteredData data
+            Object data
     ) {
     }
 
@@ -61,5 +120,26 @@ public class UserEventPublisher {
             String status
     ) {
     }
-}
 
+    private record UserUpdatedData(
+            UUID userId,
+            String username,
+            String email,
+            String role,
+            String status
+    ) {
+    }
+
+    private record UserDeletedData(
+            UUID userId,
+            Instant deletedAt
+    ) {
+    }
+
+    private record UserStatusChangedData(
+            UUID userId,
+            String previousStatus,
+            String newStatus
+    ) {
+    }
+}

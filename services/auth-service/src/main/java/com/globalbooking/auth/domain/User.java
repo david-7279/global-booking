@@ -98,6 +98,12 @@ public class User {
         this.passwordHash = passwordHash;
     }
 
+    public Status changeStatus(Status newStatus) {
+        Status previousStatus = this.status;
+        this.status = newStatus;
+        return previousStatus;
+    }
+
     public boolean isDeleted() {
         return deletedAt != null;
     }
