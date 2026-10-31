@@ -13,7 +13,7 @@ import java.util.UUID;
 
 /**
  * A database record that waits to be published to RabbitMQ.
- * <p>
+ *
  * It is saved in the same transaction as the business change. This prevents
  * a database change from succeeding while its integration event is lost.
  */
@@ -41,6 +41,12 @@ public class OutboxEvent {
     @Column(name = "published_at")
     private Instant publishedAt;
 
+    @Column(name = "next_attempt_at", nullable = false)
+    private Instant nextAttemptAt;
+
+    @Column(name = "dead_lettered_at")
+    private Instant deadLetteredAt;
+
     @Column(name = "attempts", nullable = false)
     private int attempts;
 
@@ -65,10 +71,15 @@ public class OutboxEvent {
         this.payload = payload;
         this.occurredAt = Instant.now();
         this.createdAt = this.occurredAt;
+        this.nextAttemptAt = this.occurredAt;
     }
 
     public boolean isPublished() {
         return publishedAt != null;
+    }
+
+    public boolean isDeadLettered() {
+        return deadLetteredAt != null;
     }
 
     public void markPublished() {
@@ -76,8 +87,23 @@ public class OutboxEvent {
         this.lastError = null;
     }
 
-    public void markFailed(Exception exception) {
+    public void markFailed(Exception exception, Instant nextAttemptAt) {
         this.attempts++;
-        this.lastError = exception.getMessage();
+        this.lastError = shorten(exception.getMessage());
+        this.nextAttemptAt = nextAttemptAt;
+    }
+
+    public void markDeadLettered() {
+        this.deadLetteredAt = Instant.now();
+        this.lastError = null;
+    }
+
+    private String shorten(String message) {
+        if (message == null) {
+            return "Unknown publishing error";
+        }
+        return message.length() <= 4000
+                ? message
+                : message.substring(0, 4000);
     }
 }

@@ -14,6 +14,7 @@ import com.globalbooking.auth.infrastructure.jwt.JwtService;
 import com.globalbooking.auth.infrastructure.messaging.UserEventPublisher;
 import com.globalbooking.auth.mapper.AuthMapper;
 import com.globalbooking.auth.repository.UserRepository;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;

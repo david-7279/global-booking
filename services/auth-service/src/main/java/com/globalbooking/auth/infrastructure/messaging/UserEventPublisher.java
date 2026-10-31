@@ -1,7 +1,7 @@
 package com.globalbooking.auth.infrastructure.messaging;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.globalbooking.auth.domain.User;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.globalbooking.auth.infrastructure.outbox.OutboxEventService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -62,3 +62,4 @@ public class UserEventPublisher {
     ) {
     }
 }
+

@@ -7,6 +7,10 @@ spring:
     username: ${RABBITMQ_USERNAME:globalbooking}
     password: ${RABBITMQ_PASSWORD}
     virtual-host: ${RABBITMQ_VHOST:global-booking}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:prod}
 
@@ -19,3 +23,6 @@ app:
     refresh-token-expiration: ${REFRESH_TOKEN_EXPIRATION:604800000}
   outbox:
     publish-delay-ms: ${OUTBOX_PUBLISH_DELAY_MS:1000}
+    max-attempts: ${OUTBOX_MAX_ATTEMPTS:3}
+    confirm-timeout-ms: ${OUTBOX_CONFIRM_TIMEOUT_MS:5000}
+    retry-delays-ms: ${OUTBOX_RETRY_DELAYS_MS:5000,30000,300000}
