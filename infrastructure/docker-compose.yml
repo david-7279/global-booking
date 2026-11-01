@@ -91,6 +91,49 @@ services:
     cap_add:
       - NET_BIND_SERVICE
 
+  business-service:
+    build:
+      context: ../services/business-service
+      dockerfile: Dockerfile
+    container_name: global-booking-business-service
+    restart: unless-stopped
+    expose:
+      - "8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:?SPRING_PROFILES_ACTIVE is required}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${BUSINESS_DB_NAME:?BUSINESS_DB_NAME is required}
+      DB_USERNAME: ${BUSINESS_DB_USERNAME:?BUSINESS_DB_USERNAME is required}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_INTERNAL_PORT: 5672
+      RABBITMQ_USERNAME: ${RABBITMQ_USER:?RABBITMQ_USER is required}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST:-global-booking}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_ISSUER: ${JWT_ISSUER:-global-booking-auth-service}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-global-booking-api}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health/liveness"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    networks:
+      - global-booking-network
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+
 volumes:
   globalbooking_pgdata:
     driver: local
