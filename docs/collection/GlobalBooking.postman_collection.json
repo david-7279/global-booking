@@ -1,0 +1,1983 @@
+{
+  "info": {
+    "_postman_id": "8af1c0cb-0a0f-4ac8-9c71-0c1b9d3cf001",
+    "name": "Global Booking — Auth and Business API",
+    "description": "Postman v2.1 collection for the Global Booking auth-service and business-service.\\n\\nAuthResponse is { tokens, user }. Access and refresh tokens are captured automatically. All business-domain requests inherit the collection Bearer token. The business CRUD flow is chained: Business → Establishment → BookingService/Resource.\\n\\nRecommended runner order: Register → Login → Auth checks → Business CRUD → Logout.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Refresh automatically when the JWT is missing or close to expiry.",
+          "const skip = pm.request.headers.has('X-Skip-Auto-Refresh');",
+          "const accessToken = pm.collectionVariables.get('accessToken');",
+          "const refreshToken = pm.collectionVariables.get('refreshToken');",
+          "const skew = Number(pm.environment.get('refreshSkewSeconds') || 30);",
+          "",
+          "if (!skip && accessToken && refreshToken) {",
+          "    try {",
+          "        const payload = JSON.parse(Buffer.from(accessToken.split('.')[1], 'base64').toString());",
+          "        const expiresAt = Number(payload.exp || 0);",
+          "        const now = Math.floor(Date.now() / 1000);",
+          "        if (expiresAt && expiresAt <= now + skew) {",
+          "            pm.sendRequest({",
+          "                url: pm.variables.replaceIn('{{baseUrlAuth}}/api/auth/refresh'),",
+          "                method: 'POST',",
+          "                header: { 'Content-Type': 'application/json' },",
+          "                body: { mode: 'raw', raw: JSON.stringify({ refreshToken }) }",
+          "            }, (error, response) => {",
+          "                if (!error && response.code >= 200 && response.code < 300) {",
+          "                    const body = response.json();",
+          "                    if (body.tokens && body.tokens.accessToken) {",
+          "                        pm.collectionVariables.set('accessToken', body.tokens.accessToken);",
+          "                        if (body.tokens.refreshToken) pm.collectionVariables.set('refreshToken', body.tokens.refreshToken);",
+          "                    }",
+          "                }",
+          "            });",
+          "        }",
+          "    } catch (e) {",
+          "        // The dedicated malformed-token request intentionally bypasses this block.",
+          "    }",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test('Response time is within the configured limit', () => {",
+          "    pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000));",
+          "});",
+          "",
+          "// In Collection Runner, refresh a 401 once and rerun the same request.",
+          "if (pm.response.code === 401 && !pm.request.headers.has('X-Skip-Auto-Refresh') && pm.collectionVariables.get('refreshToken')) {",
+          "    if (pm.collectionVariables.get('refreshAttempt') !== '1') {",
+          "        pm.collectionVariables.set('refreshAttempt', '1');",
+          "        const refreshToken = pm.collectionVariables.get('refreshToken');",
+          "        pm.sendRequest({",
+          "            url: pm.variables.replaceIn('{{baseUrlAuth}}/api/auth/refresh'),",
+          "            method: 'POST',",
+          "            header: { 'Content-Type': 'application/json' },",
+          "            body: { mode: 'raw', raw: JSON.stringify({ refreshToken }) }",
+          "        }, (error, response) => {",
+          "            if (!error && response.code >= 200 && response.code < 300) {",
+          "                const body = response.json();",
+          "                if (body.tokens && body.tokens.accessToken) {",
+          "                    pm.collectionVariables.set('accessToken', body.tokens.accessToken);",
+          "                    if (body.tokens.refreshToken) pm.collectionVariables.set('refreshToken', body.tokens.refreshToken);",
+          "                    postman.setNextRequest(pm.info.requestName);",
+          "                }",
+          "            }",
+          "        });",
+          "    }",
+          "} else if (pm.response.code !== 401) {",
+          "    pm.collectionVariables.unset('refreshAttempt');",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "refreshToken",
+      "value": ""
+    },
+    {
+      "key": "activeUserId",
+      "value": ""
+    },
+    {
+      "key": "businessResourceId",
+      "value": ""
+    },
+    {
+      "key": "refreshAttempt",
+      "value": ""
+    },
+    {
+      "key": "businessId",
+      "value": ""
+    },
+    {
+      "key": "establishmentId",
+      "value": ""
+    },
+    {
+      "key": "bookingServiceId",
+      "value": ""
+    },
+    {
+      "key": "resourceId",
+      "value": ""
+    },
+    {
+      "key": "businessName",
+      "value": ""
+    },
+    {
+      "key": "establishmentName",
+      "value": ""
+    },
+    {
+      "key": "otherBusinessId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication / Register",
+      "description": "Registration scenarios. The success request creates a unique test user and stores its identifiers.",
+      "item": [
+        {
+          "name": "POST /api/auth/register — success (201)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const suffix = Date.now();",
+                  "pm.collectionVariables.set('activeUsername', 'postman.user.' + suffix);",
+                  "pm.collectionVariables.set('activeEmail', 'postman.' + suffix + '@example.com');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000));",
+                  "});",
+                  "",
+                  "// In Collection Runner, refresh a 401 once and rerun the same request.",
+                  "if (pm.response.code === 401 && !pm.request.headers.has('X-Skip-Auto-Refresh') && pm.collectionVariables.get('refreshToken')) {",
+                  "    if (pm.collectionVariables.get('refreshAttempt') !== '1') {",
+                  "        pm.collectionVariables.set('refreshAttempt', '1');",
+                  "        const refreshToken = pm.collectionVariables.get('refreshToken');",
+                  "        pm.sendRequest({",
+                  "            url: pm.variables.replaceIn('{{baseUrlAuth}}/api/auth/refresh'),",
+                  "            method: 'POST',",
+                  "            header: { 'Content-Type': 'application/json' },",
+                  "            body: { mode: 'raw', raw: JSON.stringify({ refreshToken }) }",
+                  "        }, (error, response) => {",
+                  "            if (!error && response.code >= 200 && response.code < 300) {",
+                  "                const body = response.json();",
+                  "                if (body.tokens && body.tokens.accessToken) {",
+                  "                    pm.collectionVariables.set('accessToken', body.tokens.accessToken);",
+                  "                    if (body.tokens.refreshToken) pm.collectionVariables.set('refreshToken', body.tokens.refreshToken);",
+                  "                    postman.setNextRequest(pm.info.requestName);",
+                  "                }",
+                  "            }",
+                  "        });",
+                  "    }",
+                  "} else if (pm.response.code !== 401) {",
+                  "    pm.collectionVariables.unset('refreshAttempt');",
+                  "}",
+                  "pm.test('Status is 201 Created', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('Response has tokens envelope', () => { pm.expect(body.tokens).to.be.an('object'); pm.expect(body.tokens.accessToken).to.be.a('string').and.not.empty; pm.expect(body.tokens.tokenType).to.equal('Bearer'); pm.expect(body.tokens.expiresIn).to.be.a('number').and.above(0); });",
+                  "pm.test('Response has user profile', () => { pm.expect(body.user).to.be.an('object'); pm.expect(body.user.publicId).to.be.a('string').and.not.empty; pm.expect(body.user.username).to.be.a('string').and.not.empty; pm.expect(body.user.email).to.be.a('string').and.not.empty; });",
+                  "pm.collectionVariables.set('accessToken', body.tokens.accessToken);",
+                  "if (body.tokens.refreshToken) pm.collectionVariables.set('refreshToken', body.tokens.refreshToken);",
+                  "pm.collectionVariables.set('activeUserId', body.user.publicId);",
+                  "pm.test('Access token was saved', () => pm.expect(pm.collectionVariables.get('accessToken')).to.equal(body.tokens.accessToken));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrlAuth}}/api/auth/register",
+              "host": [
+                "{{baseUrlAuth}}"
+              ],
+              "path": [
+                "api/auth/register"
+              ]
+            },
+            "description": "Creates a unique test user. The response contract is AuthResponse: { tokens, user }.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{activeUsername}}\",\n  \"email\": \"{{activeEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/auth/register — missing and invalid fields (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000));",
+                  "});",
+                  "",
+                  "// In Collection Runner, refresh a 401 once and rerun the same request.",
+                  "if (pm.response.code === 401 && !pm.request.headers.has('X-Skip-Auto-Refresh') && pm.collectionVariables.get('refreshToken')) {",
+                  "    if (pm.collectionVariables.get('refreshAttempt') !== '1') {",
+                  "        pm.collectionVariables.set('refreshAttempt', '1');",
+                  "        const refreshToken = pm.collectionVariables.get('refreshToken');",
+                  "        pm.sendRequest({",
+                  "            url: pm.variables.replaceIn('{{baseUrlAuth}}/api/auth/refresh'),",
+                  "            method: 'POST',",
+                  "            header: { 'Content-Type': 'application/json' },",
+                  "            body: { mode: 'raw', raw: JSON.stringify({ refreshToken }) }",
+                  "        }, (error, response) => {",
+                  "            if (!error && response.code >= 200 && response.code < 300) {",
+                  "                const body = response.json();",
+                  "                if (body.tokens && body.tokens.accessToken) {",
+                  "                    pm.collectionVariables.set('accessToken', body.tokens.accessToken);",
+                  "                    if (body.tokens.refreshToken) pm.collectionVariables.set('refreshToken', body.tokens.refreshToken);",
+                  "                    postman.setNextRequest(pm.info.requestName);",
+                  "                }",
+                  "            }",
+                  "        });",
+                  "    }",
+                  "} else if (pm.response.code !== 401) {",
+                  "    pm.collectionVariables.unset('refreshAttempt');",
+                  "}",
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));",
+                  "pm.test('Response body is an object', () => pm.expect(pm.response.json()).to.be.an('object'));",
+                  "pm.test('Error has a message or error code', () => { const b=pm.response.json(); pm.expect(b.message || b.errorCode || b.error).to.exist; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Skip-Auto-Refresh",
+                "value": "true"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrlAuth}}/api/auth/register",
+              "host": [
+                "{{baseUrlAuth}}"
+              ],
+              "path": [
+                "api/auth/register"
+              ]
+            },
+            "description": "Invalid payload: blank username/password and malformed email.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"\",\n  \"email\": \"not-an-email\",\n  \"password\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/auth/register — weak password (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000));",
+                  "});",
+                  "",
+                  "// In Collection Runner, refresh a 401 once and rerun the same request.",
+                  "if (pm.response.code === 401 && !pm.request.headers.has('X-Skip-Auto-Refresh') && pm.collectionVariables.get('refreshToken')) {",
+                  "    if (pm.collectionVariables.get('refreshAttempt') !== '1') {",
+                  "        pm.collectionVariables.set('refreshAttempt', '1');",
+                  "        const refreshToken = pm.collectionVariables.get('refreshToken');",
+                  "        pm.sendRequest({",
+                  "            url: pm.variables.replaceIn('{{baseUrlAuth}}/api/auth/refresh'),",
+                  "            method: 'POST',",
+                  "            header: { 'Content-Type': 'application/json' },",
+                  "            body: { mode: 'raw', raw: JSON.stringify({ refreshToken }) }",
+                  "        }, (error, response) => {",
+                  "            if (!error && response.code >= 200 && response.code < 300) {",
+                  "                const body = response.json();",
+                  "                if (body.tokens && body.tokens.accessToken) {",
+                  "                    pm.collectionVariables.set('accessToken', body.tokens.accessToken);",
+                  "                    if (body.tokens.refreshToken) pm.collectionVariables.set('refreshToken', body.tokens.refreshToken);",
+                  "                    postman.setNextRequest(pm.info.requestName);",
+                  "                }",
+                  "            }",
+                  "        });",
+                  "    }",
+                  "} else if (pm.response.code !== 401) {",
+                  "    pm.collectionVariables.unset('refreshAttempt');",
+                  "}",
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));",
+                  "pm.test('Response body is an object', () => pm.expect(pm.response.json()).to.be.an('object'));",
+                  "pm.test('Error has a message or error code', () => { const b=pm.response.json(); pm.expect(b.message || b.errorCode || b.error).to.exist; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Skip-Auto-Refresh",
+                "value": "true"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrlAuth}}/api/auth/register",
+              "host": [
+                "{{baseUrlAuth}}"
+              ],
+              "path": [
+                "api/auth/register"
+              ]
+            },
+            "description": "Password is below the backend minimum/complexity requirements.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"postman.weak\",\n  \"email\": \"postman.weak@example.com\",\n  \"password\": \"abc\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Authentication / Login",
+      "description": "Login scenarios. Successful login captures accessToken and refreshToken automatically.",
+      "item": [
+        {
+          "name": "POST /api/auth/login — success (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000));",
+                  "});",
+                  "",
+                  "// In Collection Runner, refresh a 401 once and rerun the same request.",
+                  "if (pm.response.code === 401 && !pm.request.headers.has('X-Skip-Auto-Refresh') && pm.collectionVariables.get('refreshToken')) {",
+                  "    if (pm.collectionVariables.get('refreshAttempt') !== '1') {",
+                  "        pm.collectionVariables.set('refreshAttempt', '1');",
+                  "        const refreshToken = pm.collectionVariables.get('refreshToken');",
+                  "        pm.sendRequest({",
+                  "            url: pm.variables.replaceIn('{{baseUrlAuth}}/api/auth/refresh'),",
+                  "            method: 'POST',",
+                  "            header: { 'Content-Type': 'application/json' },",
+                  "            body: { mode: 'raw', raw: JSON.stringify({ refreshToken }) }",
+                  "        }, (error, response) => {",
+                  "            if (!error && response.code >= 200 && response.code < 300) {",
+                  "                const body = response.json();",
+                  "                if (body.tokens && body.tokens.accessToken) {",
+                  "                    pm.collectionVariables.set('accessToken', body.tokens.accessToken);",
+                  "                    if (body.tokens.refreshToken) pm.collectionVariables.set('refreshToken', body.tokens.refreshToken);",
+                  "                    postman.setNextRequest(pm.info.requestName);",
+                  "                }",
+                  "            }",
+                  "        });",
+                  "    }",
+                  "} else if (pm.response.code !== 401) {",
+                  "    pm.collectionVariables.unset('refreshAttempt');",
+                  "}",
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Response has tokens envelope', () => { pm.expect(body.tokens).to.be.an('object'); pm.expect(body.tokens.accessToken).to.be.a('string').and.not.empty; pm.expect(body.tokens.refreshToken).to.be.a('string').and.not.empty; pm.expect(body.tokens.tokenType).to.equal('Bearer'); pm.expect(body.tokens.expiresIn).to.be.a('number').and.above(0); });",
+                  "pm.test('Response has user profile', () => { pm.expect(body.user.publicId).to.be.a('string').and.not.empty; pm.expect(body.user.email).to.be.a('string').and.not.empty; pm.expect(body.user.role).to.be.a('string').and.not.empty; pm.expect(body.user.status).to.be.a('string').and.not.empty; });",
+                  "pm.collectionVariables.set('accessToken', body.tokens.accessToken);",
+                  "pm.collectionVariables.set('refreshToken', body.tokens.refreshToken);",
+                  "pm.collectionVariables.set('activeUserId', body.user.publicId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrlAuth}}/api/auth/login",
+              "host": [
+                "{{baseUrlAuth}}"
+              ],
+              "path": [
+                "api/auth/login"
+              ]
+            },
+            "description": "Logs in using the active credentials. Run Register success first for a clean run.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{activeEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/auth/login — wrong password (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000));",
+                  "});",
+                  "",
+                  "// In Collection Runner, refresh a 401 once and rerun the same request.",
+                  "if (pm.response.code === 401 && !pm.request.headers.has('X-Skip-Auto-Refresh') && pm.collectionVariables.get('refreshToken')) {",
+                  "    if (pm.collectionVariables.get('refreshAttempt') !== '1') {",
+                  "        pm.collectionVariables.set('refreshAttempt', '1');",
+                  "        const refreshToken = pm.collectionVariables.get('refreshToken');",
+                  "        pm.sendRequest({",
+                  "            url: pm.variables.replaceIn('{{baseUrlAuth}}/api/auth/refresh'),",
+                  "            method: 'POST',",
+                  "            header: { 'Content-Type': 'application/json' },",
+                  "            body: { mode: 'raw', raw: JSON.stringify({ refreshToken }) }",
+                  "        }, (error, response) => {",
+                  "            if (!error && response.code >= 200 && response.code < 300) {",
+                  "                const body = response.json();",
+                  "                if (body.tokens && body.tokens.accessToken) {",
+                  "                    pm.collectionVariables.set('accessToken', body.tokens.accessToken);",
+                  "                    if (body.tokens.refreshToken) pm.collectionVariables.set('refreshToken', body.tokens.refreshToken);",
+                  "                    postman.setNextRequest(pm.info.requestName);",
+                  "                }",
+                  "            }",
+                  "        });",
+                  "    }",
+                  "} else if (pm.response.code !== 401) {",
+                  "    pm.collectionVariables.unset('refreshAttempt');",
+                  "}",
+                  "pm.test('Status is 401 Unauthorized', () => pm.response.to.have.status(401));",
+                  "pm.test('Response body is an object', () => pm.expect(pm.response.json()).to.be.an('object'));",
+                  "pm.test('Error has a message or error code', () => { const b=pm.response.json(); pm.expect(b.message || b.errorCode || b.error).to.exist; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Skip-Auto-Refresh",
+                "value": "true"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrlAuth}}/api/auth/login",
+              "host": [
+                "{{baseUrlAuth}}"
+              ],
+              "path": [
+                "api/auth/login"
+              ]
+            },
+            "description": "Invalid credentials must not reveal whether the email or password was wrong.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{activeEmail}}\",\n  \"password\": \"WrongPassword9\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/auth/login — unknown email (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000));",
+                  "});",
+                  "",
+                  "// In Collection Runner, refresh a 401 once and rerun the same request.",
+                  "if (pm.response.code === 401 && !pm.request.headers.has('X-Skip-Auto-Refresh') && pm.collectionVariables.get('refreshToken')) {",
+                  "    if (pm.collectionVariables.get('refreshAttempt') !== '1') {",
+                  "        pm.collectionVariables.set('refreshAttempt', '1');",
+                  "        const refreshToken = pm.collectionVariables.get('refreshToken');",
+                  "        pm.sendRequest({",
+                  "            url: pm.variables.replaceIn('{{baseUrlAuth}}/api/auth/refresh'),",
+                  "            method: 'POST',",
+                  "            header: { 'Content-Type': 'application/json' },",
+                  "            body: { mode: 'raw', raw: JSON.stringify({ refreshToken }) }",
+                  "        }, (error, response) => {",
+                  "            if (!error && response.code >= 200 && response.code < 300) {",
+                  "                const body = response.json();",
+                  "                if (body.tokens && body.tokens.accessToken) {",
+                  "                    pm.collectionVariables.set('accessToken', body.tokens.accessToken);",
+                  "                    if (body.tokens.refreshToken) pm.collectionVariables.set('refreshToken', body.tokens.refreshToken);",
+                  "                    postman.setNextRequest(pm.info.requestName);",
+                  "                }",
+                  "            }",
+                  "        });",
+                  "    }",
+                  "} else if (pm.response.code !== 401) {",
+                  "    pm.collectionVariables.unset('refreshAttempt');",
+                  "}",
+                  "pm.test('Status is 401 Unauthorized', () => pm.response.to.have.status(401));",
+                  "pm.test('Response body is an object', () => pm.expect(pm.response.json()).to.be.an('object'));",
+                  "pm.test('Error has a message or error code', () => { const b=pm.response.json(); pm.expect(b.message || b.errorCode || b.error).to.exist; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Skip-Auto-Refresh",
+                "value": "true"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrlAuth}}/api/auth/login",
+              "host": [
+                "{{baseUrlAuth}}"
+              ],
+              "path": [
+                "api/auth/login"
+              ]
+            },
+            "description": "Unknown email must use the same generic authentication failure contract.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{unknownEmail}}\",\n  \"password\": \"WrongPassword9\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Authentication / Tokens and Session",
+      "description": "JWT-protected profile, refresh, logout and negative token cases.",
+      "item": [
+        {
+          "name": "GET /api/auth/me — bearer token success (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000));",
+                  "});",
+                  "",
+                  "// In Collection Runner, refresh a 401 once and rerun the same request.",
+                  "if (pm.response.code === 401 && !pm.request.headers.has('X-Skip-Auto-Refresh') && pm.collectionVariables.get('refreshToken')) {",
+                  "    if (pm.collectionVariables.get('refreshAttempt') !== '1') {",
+                  "        pm.collectionVariables.set('refreshAttempt', '1');",
+                  "        const refreshToken = pm.collectionVariables.get('refreshToken');",
+                  "        pm.sendRequest({",
+                  "            url: pm.variables.replaceIn('{{baseUrlAuth}}/api/auth/refresh'),",
+                  "            method: 'POST',",
+                  "            header: { 'Content-Type': 'application/json' },",
+                  "            body: { mode: 'raw', raw: JSON.stringify({ refreshToken }) }",
+                  "        }, (error, response) => {",
+                  "            if (!error && response.code >= 200 && response.code < 300) {",
+                  "                const body = response.json();",
+                  "                if (body.tokens && body.tokens.accessToken) {",
+                  "                    pm.collectionVariables.set('accessToken', body.tokens.accessToken);",
+                  "                    if (body.tokens.refreshToken) pm.collectionVariables.set('refreshToken', body.tokens.refreshToken);",
+                  "                    postman.setNextRequest(pm.info.requestName);",
+                  "                }",
+                  "            }",
+                  "        });",
+                  "    }",
+                  "} else if (pm.response.code !== 401) {",
+                  "    pm.collectionVariables.unset('refreshAttempt');",
+                  "}",
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "const b=pm.response.json();",
+                  "pm.test('Profile shape is valid', () => { pm.expect(b.publicId).to.be.a('string'); pm.expect(b.username).to.be.a('string'); pm.expect(b.email).to.be.a('string'); pm.expect(b.role).to.be.a('string'); pm.expect(b.status).to.be.a('string'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrlAuth}}/api/auth/me",
+              "host": [
+                "{{baseUrlAuth}}"
+              ],
+              "path": [
+                "api/auth/me"
+              ]
+            },
+            "description": "Returns the authenticated user's public profile using collection-level Bearer authentication."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/auth/refresh — success (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000));",
+                  "});",
+                  "",
+                  "// In Collection Runner, refresh a 401 once and rerun the same request.",
+                  "if (pm.response.code === 401 && !pm.request.headers.has('X-Skip-Auto-Refresh') && pm.collectionVariables.get('refreshToken')) {",
+                  "    if (pm.collectionVariables.get('refreshAttempt') !== '1') {",
+                  "        pm.collectionVariables.set('refreshAttempt', '1');",
+                  "        const refreshToken = pm.collectionVariables.get('refreshToken');",
+                  "        pm.sendRequest({",
+                  "            url: pm.variables.replaceIn('{{baseUrlAuth}}/api/auth/refresh'),",
+                  "            method: 'POST',",
+                  "            header: { 'Content-Type': 'application/json' },",
+                  "            body: { mode: 'raw', raw: JSON.stringify({ refreshToken }) }",
+                  "        }, (error, response) => {",
+                  "            if (!error && response.code >= 200 && response.code < 300) {",
+                  "                const body = response.json();",
+                  "                if (body.tokens && body.tokens.accessToken) {",
+                  "                    pm.collectionVariables.set('accessToken', body.tokens.accessToken);",
+                  "                    if (body.tokens.refreshToken) pm.collectionVariables.set('refreshToken', body.tokens.refreshToken);",
+                  "                    postman.setNextRequest(pm.info.requestName);",
+                  "                }",
+                  "            }",
+                  "        });",
+                  "    }",
+                  "} else if (pm.response.code !== 401) {",
+                  "    pm.collectionVariables.unset('refreshAttempt');",
+                  "}",
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "const b=pm.response.json();",
+                  "pm.test('Refresh response has token fields', () => { pm.expect(b.tokens).to.be.an('object'); pm.expect(b.tokens.accessToken).to.be.a('string').and.not.empty; pm.expect(b.tokens.expiresIn).to.be.a('number').and.above(0); });",
+                  "pm.collectionVariables.set('accessToken', b.tokens.accessToken);",
+                  "if (b.tokens.refreshToken) pm.collectionVariables.set('refreshToken', b.tokens.refreshToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrlAuth}}/api/auth/refresh",
+              "host": [
+                "{{baseUrlAuth}}"
+              ],
+              "path": [
+                "api/auth/refresh"
+              ]
+            },
+            "description": "Renews the access token using the refreshToken collection variable.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/auth/logout — success (204)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000));",
+                  "});",
+                  "",
+                  "// In Collection Runner, refresh a 401 once and rerun the same request.",
+                  "if (pm.response.code === 401 && !pm.request.headers.has('X-Skip-Auto-Refresh') && pm.collectionVariables.get('refreshToken')) {",
+                  "    if (pm.collectionVariables.get('refreshAttempt') !== '1') {",
+                  "        pm.collectionVariables.set('refreshAttempt', '1');",
+                  "        const refreshToken = pm.collectionVariables.get('refreshToken');",
+                  "        pm.sendRequest({",
+                  "            url: pm.variables.replaceIn('{{baseUrlAuth}}/api/auth/refresh'),",
+                  "            method: 'POST',",
+                  "            header: { 'Content-Type': 'application/json' },",
+                  "            body: { mode: 'raw', raw: JSON.stringify({ refreshToken }) }",
+                  "        }, (error, response) => {",
+                  "            if (!error && response.code >= 200 && response.code < 300) {",
+                  "                const body = response.json();",
+                  "                if (body.tokens && body.tokens.accessToken) {",
+                  "                    pm.collectionVariables.set('accessToken', body.tokens.accessToken);",
+                  "                    if (body.tokens.refreshToken) pm.collectionVariables.set('refreshToken', body.tokens.refreshToken);",
+                  "                    postman.setNextRequest(pm.info.requestName);",
+                  "                }",
+                  "            }",
+                  "        });",
+                  "    }",
+                  "} else if (pm.response.code !== 401) {",
+                  "    pm.collectionVariables.unset('refreshAttempt');",
+                  "}",
+                  "pm.test('Status is 204 No Content', () => pm.response.to.have.status(204));",
+                  "pm.collectionVariables.unset('refreshToken');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrlAuth}}/api/auth/logout",
+              "host": [
+                "{{baseUrlAuth}}"
+              ],
+              "path": [
+                "api/auth/logout"
+              ]
+            },
+            "description": "Revokes the active refresh token. Run this last because it invalidates the refresh token.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/auth/me — no token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000));",
+                  "});",
+                  "",
+                  "// In Collection Runner, refresh a 401 once and rerun the same request.",
+                  "if (pm.response.code === 401 && !pm.request.headers.has('X-Skip-Auto-Refresh') && pm.collectionVariables.get('refreshToken')) {",
+                  "    if (pm.collectionVariables.get('refreshAttempt') !== '1') {",
+                  "        pm.collectionVariables.set('refreshAttempt', '1');",
+                  "        const refreshToken = pm.collectionVariables.get('refreshToken');",
+                  "        pm.sendRequest({",
+                  "            url: pm.variables.replaceIn('{{baseUrlAuth}}/api/auth/refresh'),",
+                  "            method: 'POST',",
+                  "            header: { 'Content-Type': 'application/json' },",
+                  "            body: { mode: 'raw', raw: JSON.stringify({ refreshToken }) }",
+                  "        }, (error, response) => {",
+                  "            if (!error && response.code >= 200 && response.code < 300) {",
+                  "                const body = response.json();",
+                  "                if (body.tokens && body.tokens.accessToken) {",
+                  "                    pm.collectionVariables.set('accessToken', body.tokens.accessToken);",
+                  "                    if (body.tokens.refreshToken) pm.collectionVariables.set('refreshToken', body.tokens.refreshToken);",
+                  "                    postman.setNextRequest(pm.info.requestName);",
+                  "                }",
+                  "            }",
+                  "        });",
+                  "    }",
+                  "} else if (pm.response.code !== 401) {",
+                  "    pm.collectionVariables.unset('refreshAttempt');",
+                  "}",
+                  "pm.test('Status is 401 Unauthorized', () => pm.response.to.have.status(401));",
+                  "pm.test('Response body is an object', () => pm.expect(pm.response.json()).to.be.an('object'));",
+                  "pm.test('Error has a message or error code', () => { const b=pm.response.json(); pm.expect(b.message || b.errorCode || b.error).to.exist; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Skip-Auto-Refresh",
+                "value": "true"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrlAuth}}/api/auth/me",
+              "host": [
+                "{{baseUrlAuth}}"
+              ],
+              "path": [
+                "api/auth/me"
+              ]
+            },
+            "description": "Negative case: no Authorization header.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/auth/me — malformed token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000));",
+                  "});",
+                  "",
+                  "// In Collection Runner, refresh a 401 once and rerun the same request.",
+                  "if (pm.response.code === 401 && !pm.request.headers.has('X-Skip-Auto-Refresh') && pm.collectionVariables.get('refreshToken')) {",
+                  "    if (pm.collectionVariables.get('refreshAttempt') !== '1') {",
+                  "        pm.collectionVariables.set('refreshAttempt', '1');",
+                  "        const refreshToken = pm.collectionVariables.get('refreshToken');",
+                  "        pm.sendRequest({",
+                  "            url: pm.variables.replaceIn('{{baseUrlAuth}}/api/auth/refresh'),",
+                  "            method: 'POST',",
+                  "            header: { 'Content-Type': 'application/json' },",
+                  "            body: { mode: 'raw', raw: JSON.stringify({ refreshToken }) }",
+                  "        }, (error, response) => {",
+                  "            if (!error && response.code >= 200 && response.code < 300) {",
+                  "                const body = response.json();",
+                  "                if (body.tokens && body.tokens.accessToken) {",
+                  "                    pm.collectionVariables.set('accessToken', body.tokens.accessToken);",
+                  "                    if (body.tokens.refreshToken) pm.collectionVariables.set('refreshToken', body.tokens.refreshToken);",
+                  "                    postman.setNextRequest(pm.info.requestName);",
+                  "                }",
+                  "            }",
+                  "        });",
+                  "    }",
+                  "} else if (pm.response.code !== 401) {",
+                  "    pm.collectionVariables.unset('refreshAttempt');",
+                  "}",
+                  "pm.test('Status is 401 Unauthorized', () => pm.response.to.have.status(401));",
+                  "pm.test('Response body is an object', () => pm.expect(pm.response.json()).to.be.an('object'));",
+                  "pm.test('Error has a message or error code', () => { const b=pm.response.json(); pm.expect(b.message || b.errorCode || b.error).to.exist; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Skip-Auto-Refresh",
+                "value": "true"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrlAuth}}/api/auth/me",
+              "host": [
+                "{{baseUrlAuth}}"
+              ],
+              "path": [
+                "api/auth/me"
+              ]
+            },
+            "description": "Negative case: malformed bearer token.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{malformedAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Business API / Health",
+      "description": "Actuator health is public for container probes.",
+      "item": [
+        {
+          "name": "GET /actuator/health — business UP (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => { pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)); });",
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200)); const b=pm.response.json(); pm.expect(b.status).to.equal('UP');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrlBusiness}}/actuator/health",
+              "host": [
+                "{{baseUrlBusiness}}"
+              ],
+              "path": [
+                "actuator/health"
+              ]
+            },
+            "description": "Checks business-service health.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Business API / Chained CRUD",
+      "description": "Active REST contract tests for the current business-service. All requests inherit the collection Bearer token except the explicit no-token negative case. Run in order because IDs are captured from prior responses.",
+      "item": [
+        {
+          "name": "POST /api/businesses — create success (201)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('businessName','Postman Business '+Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => { pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)); });",
+                  "pm.test('Status is 201 Created', () => pm.response.to.have.status(201));",
+                  "const b=pm.response.json();",
+                  "pm.test('Business response shape is valid', () => { pm.expect(b.id).to.be.a('string').and.not.empty; pm.expect(b.ownerUserId).to.equal(pm.collectionVariables.get('activeUserId')); pm.expect(b.name).to.be.a('string'); pm.expect(b.status).to.equal('ACTIVE'); });",
+                  "pm.collectionVariables.set('businessId', b.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrlBusiness}}/api/businesses",
+              "host": [
+                "{{baseUrlBusiness}}"
+              ],
+              "path": [
+                "api/businesses"
+              ]
+            },
+            "description": "Creates a business owned by the authenticated JWT subject. Saves businessId for all following requests.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{businessName}}\",\n  \"description\": \"Created by the automated Postman flow.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/businesses — list owned businesses (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => { pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)); });",
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "const list=pm.response.json();",
+                  "pm.test('Response is an array', () => pm.expect(list).to.be.an('array'));",
+                  "pm.test('Created business is present', () => pm.expect(list.some(x => x.id === pm.collectionVariables.get('businessId'))).to.equal(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrlBusiness}}/api/businesses",
+              "host": [
+                "{{baseUrlBusiness}}"
+              ],
+              "path": [
+                "api/businesses"
+              ]
+            },
+            "description": "Lists businesses visible to the authenticated actor and checks the created business is present."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/businesses/{id} — success (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => { pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)); });",
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "const b=pm.response.json();",
+                  "pm.test('ID and owner are correct', () => { pm.expect(b.id).to.equal(pm.collectionVariables.get('businessId')); pm.expect(b.ownerUserId).to.equal(pm.collectionVariables.get('activeUserId')); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrlBusiness}}/api/businesses/{{businessId}}",
+              "host": [
+                "{{baseUrlBusiness}}"
+              ],
+              "path": [
+                "api/businesses/{{businessId}}"
+              ]
+            },
+            "description": "Gets the chained business by ID."
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/businesses/{id} — update success (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => { pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)); });",
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "const b=pm.response.json(); pm.test('Updated fields are returned', () => { pm.expect(b.name).to.equal(pm.collectionVariables.get('businessName')+' Updated'); pm.expect(b.description).to.equal('Updated by Postman.'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrlBusiness}}/api/businesses/{{businessId}}",
+              "host": [
+                "{{baseUrlBusiness}}"
+              ],
+              "path": [
+                "api/businesses/{{businessId}}"
+              ]
+            },
+            "description": "Updates the business name and description.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{businessName}} Updated\",\n  \"description\": \"Updated by Postman.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/businesses/{id}/establishments — create success (201)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('establishmentName','Main Establishment '+Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => { pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)); });",
+                  "pm.test('Status is 201 Created', () => pm.response.to.have.status(201)); const b=pm.response.json();",
+                  "pm.test('Establishment response shape is valid', () => { pm.expect(b.id).to.be.a('string').and.not.empty; pm.expect(b.businessId).to.equal(pm.collectionVariables.get('businessId')); pm.expect(b.status).to.equal('ACTIVE'); });",
+                  "pm.collectionVariables.set('establishmentId', b.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrlBusiness}}/api/businesses/{{businessId}}/establishments",
+              "host": [
+                "{{baseUrlBusiness}}"
+              ],
+              "path": [
+                "api/businesses/{{businessId}}/establishments"
+              ]
+            },
+            "description": "Creates an establishment under the chained business and saves establishmentId.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{establishmentName}}\",\n  \"address\": \"Postman Street 1\",\n  \"timezone\": \"Europe/Lisbon\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/businesses/{id}/establishments — list (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => { pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)); });",
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200)); const list=pm.response.json();",
+                  "pm.test('Created establishment is present', () => pm.expect(list.some(x => x.id === pm.collectionVariables.get('establishmentId'))).to.equal(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrlBusiness}}/api/businesses/{{businessId}}/establishments",
+              "host": [
+                "{{baseUrlBusiness}}"
+              ],
+              "path": [
+                "api/businesses/{{businessId}}/establishments"
+              ]
+            },
+            "description": "Lists establishments belonging to the chained business."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/establishments/{id} — success (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => { pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)); });",
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200)); const b=pm.response.json(); pm.expect(b.businessId).to.equal(pm.collectionVariables.get('businessId'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrlBusiness}}/api/establishments/{{establishmentId}}",
+              "host": [
+                "{{baseUrlBusiness}}"
+              ],
+              "path": [
+                "api/establishments/{{establishmentId}}"
+              ]
+            },
+            "description": "Gets the chained establishment."
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/establishments/{id} — update success (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => { pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)); });",
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200)); const b=pm.response.json(); pm.expect(b.address).to.equal('Updated Postman Address 2');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrlBusiness}}/api/establishments/{{establishmentId}}",
+              "host": [
+                "{{baseUrlBusiness}}"
+              ],
+              "path": [
+                "api/establishments/{{establishmentId}}"
+              ]
+            },
+            "description": "Updates the chained establishment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{establishmentName}} Updated\",\n  \"address\": \"Updated Postman Address 2\",\n  \"timezone\": \"Europe/Lisbon\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/establishments/{id}/services — create success (201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => { pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)); });",
+                  "pm.test('Status is 201 Created', () => pm.response.to.have.status(201)); const b=pm.response.json();",
+                  "pm.test('Booking service response shape is valid', () => { pm.expect(b.id).to.be.a('string').and.not.empty; pm.expect(b.establishmentId).to.equal(pm.collectionVariables.get('establishmentId')); pm.expect(b.durationMinutes).to.be.a('number'); pm.expect(b.priceCents).to.be.a('number'); });",
+                  "pm.collectionVariables.set('bookingServiceId', b.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrlBusiness}}/api/establishments/{{establishmentId}}/services",
+              "host": [
+                "{{baseUrlBusiness}}"
+              ],
+              "path": [
+                "api/establishments/{{establishmentId}}/services"
+              ]
+            },
+            "description": "Creates a booking service and saves bookingServiceId.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Consultation\",\n  \"description\": \"Postman service\",\n  \"durationMinutes\": 60,\n  \"priceCents\": 2500,\n  \"currency\": \"EUR\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/establishments/{id}/services — list (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => { pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)); });",
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200)); const list=pm.response.json(); pm.expect(list.some(x => x.id === pm.collectionVariables.get('bookingServiceId'))).to.equal(true);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrlBusiness}}/api/establishments/{{establishmentId}}/services",
+              "host": [
+                "{{baseUrlBusiness}}"
+              ],
+              "path": [
+                "api/establishments/{{establishmentId}}/services"
+              ]
+            },
+            "description": "Lists booking services."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/services/{id} — success (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => { pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)); });",
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200)); const b=pm.response.json(); pm.expect(b.establishmentId).to.equal(pm.collectionVariables.get('establishmentId'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrlBusiness}}/api/services/{{bookingServiceId}}",
+              "host": [
+                "{{baseUrlBusiness}}"
+              ],
+              "path": [
+                "api/services/{{bookingServiceId}}"
+              ]
+            },
+            "description": "Gets the chained booking service."
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/services/{id} — update success (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => { pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)); });",
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200)); const b=pm.response.json(); pm.expect(b.durationMinutes).to.equal(90);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrlBusiness}}/api/services/{{bookingServiceId}}",
+              "host": [
+                "{{baseUrlBusiness}}"
+              ],
+              "path": [
+                "api/services/{{bookingServiceId}}"
+              ]
+            },
+            "description": "Updates the booking service.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Consultation Updated\",\n  \"description\": \"Updated by Postman\",\n  \"durationMinutes\": 90,\n  \"priceCents\": 3000,\n  \"currency\": \"EUR\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/establishments/{id}/resources — create success (201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => { pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)); });",
+                  "pm.test('Status is 201 Created', () => pm.response.to.have.status(201)); const b=pm.response.json();",
+                  "pm.test('Resource response shape is valid', () => { pm.expect(b.id).to.be.a('string').and.not.empty; pm.expect(b.establishmentId).to.equal(pm.collectionVariables.get('establishmentId')); pm.expect(b.capacity).to.be.a('number'); });",
+                  "pm.collectionVariables.set('resourceId', b.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrlBusiness}}/api/establishments/{{establishmentId}}/resources",
+              "host": [
+                "{{baseUrlBusiness}}"
+              ],
+              "path": [
+                "api/establishments/{{establishmentId}}/resources"
+              ]
+            },
+            "description": "Creates a resource and saves resourceId.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Room 1\",\n  \"resourceType\": \"ROOM\",\n  \"capacity\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/establishments/{id}/resources — list (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => { pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)); });",
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200)); const list=pm.response.json(); pm.expect(list.some(x => x.id === pm.collectionVariables.get('resourceId'))).to.equal(true);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrlBusiness}}/api/establishments/{{establishmentId}}/resources",
+              "host": [
+                "{{baseUrlBusiness}}"
+              ],
+              "path": [
+                "api/establishments/{{establishmentId}}/resources"
+              ]
+            },
+            "description": "Lists resources."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/resources/{id} — success (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => { pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)); });",
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200)); const b=pm.response.json(); pm.expect(b.establishmentId).to.equal(pm.collectionVariables.get('establishmentId'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrlBusiness}}/api/resources/{{resourceId}}",
+              "host": [
+                "{{baseUrlBusiness}}"
+              ],
+              "path": [
+                "api/resources/{{resourceId}}"
+              ]
+            },
+            "description": "Gets the chained resource."
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/resources/{id} — update success (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => { pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)); });",
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200)); const b=pm.response.json(); pm.expect(b.capacity).to.equal(4);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrlBusiness}}/api/resources/{{resourceId}}",
+              "host": [
+                "{{baseUrlBusiness}}"
+              ],
+              "path": [
+                "api/resources/{{resourceId}}"
+              ]
+            },
+            "description": "Updates the resource.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Room 1 Updated\",\n  \"resourceType\": \"ROOM\",\n  \"capacity\": 4\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/businesses — invalid payload (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => { pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)); });",
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400)); pm.expect(pm.response.json()).to.be.an('object');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrlBusiness}}/api/businesses",
+              "host": [
+                "{{baseUrlBusiness}}"
+              ],
+              "path": [
+                "api/businesses"
+              ]
+            },
+            "description": "Validation case: missing required name.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"\",\n  \"description\": \"invalid\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/businesses/{id} — nonexistent (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => { pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)); });",
+                  "pm.test('Status is 404 Not Found', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrlBusiness}}/api/businesses/{{nonexistentId}}",
+              "host": [
+                "{{baseUrlBusiness}}"
+              ],
+              "path": [
+                "api/businesses/{{nonexistentId}}"
+              ]
+            },
+            "description": "Not-found case."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/businesses/{id} — another user resource (403 or 404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => { pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)); });",
+                  "pm.test('Cross-user access is denied or hidden', () => pm.expect([403,404]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrlBusiness}}/api/businesses/{{otherBusinessId}}",
+              "host": [
+                "{{baseUrlBusiness}}"
+              ],
+              "path": [
+                "api/businesses/{{otherBusinessId}}"
+              ]
+            },
+            "description": "Authorization case for a business not owned by the active user."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/businesses — no token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => { pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)); });",
+                  "pm.test('Status is 401 Unauthorized', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Skip-Auto-Refresh",
+                "value": "true"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrlBusiness}}/api/businesses",
+              "host": [
+                "{{baseUrlBusiness}}"
+              ],
+              "path": [
+                "api/businesses"
+              ]
+            },
+            "description": "Authentication negative case. Explicitly disables collection auth.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/establishments/{id}/services — invalid limits (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => { pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)); });",
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));",
+                  "pm.test('Error body is structured', () => { const b=pm.response.json(); pm.expect(b.message || b.errorCode || b.error).to.exist; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrlBusiness}}/api/establishments/{{establishmentId}}/services",
+              "host": [
+                "{{baseUrlBusiness}}"
+              ],
+              "path": [
+                "api/establishments/{{establishmentId}}/services"
+              ]
+            },
+            "description": "Validation case: duration is zero, price is negative and currency is lowercase.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Invalid\",\n  \"description\": \"invalid\",\n  \"durationMinutes\": 0,\n  \"priceCents\": -1,\n  \"currency\": \"eur\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/resources/{id} — success (204)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => { pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)); });",
+                  "pm.test('Status is 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrlBusiness}}/api/resources/{{resourceId}}",
+              "host": [
+                "{{baseUrlBusiness}}"
+              ],
+              "path": [
+                "api/resources/{{resourceId}}"
+              ]
+            },
+            "description": "Soft-deletes the resource."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/services/{id} — success (204)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => { pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)); });",
+                  "pm.test('Status is 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrlBusiness}}/api/services/{{bookingServiceId}}",
+              "host": [
+                "{{baseUrlBusiness}}"
+              ],
+              "path": [
+                "api/services/{{bookingServiceId}}"
+              ]
+            },
+            "description": "Soft-deletes the booking service."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/establishments/{id} — success (204)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => { pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)); });",
+                  "pm.test('Status is 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrlBusiness}}/api/establishments/{{establishmentId}}",
+              "host": [
+                "{{baseUrlBusiness}}"
+              ],
+              "path": [
+                "api/establishments/{{establishmentId}}"
+              ]
+            },
+            "description": "Soft-deletes the establishment."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/businesses/{id} — success (204)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response time is within the configured limit', () => { pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)); });",
+                  "pm.test('Status is 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrlBusiness}}/api/businesses/{{businessId}}",
+              "host": [
+                "{{baseUrlBusiness}}"
+              ],
+              "path": [
+                "api/businesses/{{businessId}}"
+              ]
+            },
+            "description": "Final cleanup: soft-deletes the business."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
