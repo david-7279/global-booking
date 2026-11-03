@@ -105,6 +105,12 @@ docker compose --env-file infrastructure/.env -f infrastructure/docker-compose-d
 docker compose --env-file infrastructure/.env -f infrastructure/docker-compose-dev.yml logs -f auth-service
 ```
 
+#### Check the logs of the business-service
+
+```bash
+docker compose --env-file infrastructure/.env -f infrastructure/docker-compose-dev.yml logs -f business-service
+```
+
 #### Check the status of RabbitMQ
 
 ```bash
