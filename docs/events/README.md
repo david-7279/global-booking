@@ -40,7 +40,7 @@ removing a required field, changing a field type, or changing its meaning, requi
 
 A new version must have a new schema file, for example:
 
-```
+```text
 auth/user-registered-v2.json
 ```
 
@@ -51,7 +51,7 @@ contracts must not be changed retroactively.
 
 The current RabbitMQ exchange is:
 
-```
+```text
 Name: global-booking.events
 Type: topic
 Durable: true
@@ -63,13 +63,13 @@ own their queues and bindings.
 
 A consumer that needs all auth user events may bind with:
 
-```
+```text
 auth.user.*
 ```
 
 A consumer that needs only registration events should bind with:
 
-```
+```text
 auth.user.registered
 ```
 
@@ -103,13 +103,13 @@ events.
 
 The standard retry schedule is:
 
-| Attempt          | Delay before retry             |
-|------------------|--------------------------------|
-| Initial delivery | None                           |
-| Retry 1          | 5 seconds                      |
-| Retry 2          | 30 seconds                     |
-| Retry 3          | 5 minutes                      |
-| Final failure    | Route to the dead-letter queue |
+|          Attempt |             Delay before retry |
+|-----------------:|-------------------------------:|
+| Initial delivery |                           None |
+|          Retry 1 |                      5 seconds |
+|          Retry 2 |                     30 seconds |
+|          Retry 3 |                      5 minutes |
+|    Final failure | Route to the dead-letter queue |
 
 The retry count must be tracked using message headers and/or a persisted consumer-processing record. A consumer must not
 retry indefinitely.
@@ -132,7 +132,7 @@ Consumers use manual acknowledgements:
 
 Failed messages are routed to:
 
-```
+```text
 Dead-letter exchange: global-booking.events.dlx
 Dead-letter routing key: <original-routing-key>.failed
 Dead-letter queue: <consumer-name>.<event-family>.dlq
@@ -140,7 +140,7 @@ Dead-letter queue: <consumer-name>.<event-family>.dlq
 
 Example:
 
-```
+```text
 Original routing key: auth.user.registered
 Dead-letter routing key: auth.user.registered.failed
 Dead-letter queue: notification-service.auth-events.dlq

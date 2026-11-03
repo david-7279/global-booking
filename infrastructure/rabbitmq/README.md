@@ -5,19 +5,19 @@ separately under `docs/events/`.
 
 ## Virtual host
 
-```
+```text
 Name: global-booking
 ```
 
 The virtual host must match the value configured in `infrastructure/.env`:
 
-```
+```env
 RABBITMQ_VHOST=global-booking
 ```
 
 ## Main event exchange
 
-```
+```text
 Name: global-booking.events
 Type: topic
 Durable: true
@@ -29,7 +29,7 @@ The exchange receives integration events from producers such as `auth-service`.
 
 Current auth-service routing keys:
 
-```
+```text
 auth.user.registered
 auth.user.updated
 auth.user.deleted
@@ -38,7 +38,7 @@ auth.user.status-changed
 
 ## Dead-letter exchange
 
-```
+```text
 Name: global-booking.events.dlx
 Type: topic
 Durable: true
@@ -59,7 +59,7 @@ identifies both the consumer and the event family.
 
 Example:
 
-```
+```text
 Queue: notification-service.auth-events
 Durable: true
 Auto-delete: false
@@ -69,7 +69,7 @@ Dead-letter queue: notification-service.auth-events.dlq
 
 A consumer that only needs registration events should use:
 
-```
+```text
 Binding: auth.user.registered
 ```
 
@@ -77,33 +77,33 @@ Binding: auth.user.registered
 
 For a consumer named `<consumer-name>` and an event family named `<event-family>`:
 
-```
+```text
 Queue: <consumer-name>.<event-family>
 Dead-letter queue: <consumer-name>.<event-family>.dlq
 ```
 
 Example:
 
-```
+```text
 Queue: notification-service.auth-events
 Dead-letter queue: notification-service.auth-events.dlq
 ```
 
 The queue should be configured with:
 
-```
+```text
 x-dead-letter-exchange: global-booking.events.dlx
 ```
 
 The dead-letter exchange should receive failed messages with this routing-key convention:
 
-```
+```text
 <original-routing-key>.failed
 ```
 
 Example:
 
-```
+```text
 Original: auth.user.registered
 Dead-letter: auth.user.registered.failed
 ```
@@ -112,20 +112,20 @@ Dead-letter: auth.user.registered.failed
 
 The standard retry schedule is:
 
-| Attempt          | Delay             |
-|------------------|-------------------|
-| Initial delivery | None              |
-| Retry 1          | 5 seconds         |
-| Retry 2          | 30 seconds        |
-| Retry 3          | 5 minutes         |
-| Final failure    | Dead-letter queue |
+|          Attempt |             Delay |
+|-----------------:|------------------:|
+| Initial delivery |              None |
+|          Retry 1 |         5 seconds |
+|          Retry 2 |        30 seconds |
+|          Retry 3 |         5 minutes |
+|    Final failure | Dead-letter queue |
 
 Retry queues are consumer-specific. A retry implementation may use TTL queues with dead-letter routing or another
 approved delayed-message mechanism. It must preserve the original event body and routing key.
 
 Suggested queue naming for a consumer:
 
-```
+```text
 <consumer-name>.<event-family>.retry.5s
 <consumer-name>.<event-family>.retry.30s
 <consumer-name>.<event-family>.retry.5m
@@ -152,25 +152,25 @@ Consumers must be idempotent and deduplicate using the event envelope's `eventId
 The exchange, queues, and messages must be durable where business events must survive a broker restart. The RabbitMQ
 data directory is persisted by the Docker volume:
 
-```
+```text
 rabbitmq-data:/var/lib/rabbitmq
 ```
 
 The development Compose publishes the management UI on:
 
-```
+```text
 http://localhost:15672
 ```
 
 The AMQP port published for local tools is:
 
-```
+```text
 localhost:5672
 ```
 
 Containers must connect through the Docker DNS name:
 
-```
+```text
 rabbitmq:5672
 ```
 
@@ -180,13 +180,13 @@ Do not use `localhost:5672` from inside another container.
 
 RabbitMQ credentials and host ports come from the single global environment file:
 
-```
+```text
 infrastructure/.env
 ```
 
 Expected variables:
 
-```
+```env
 RABBITMQ_USER=globalbooking
 RABBITMQ_PASSWORD=<strong-password>
 RABBITMQ_VHOST=global-booking

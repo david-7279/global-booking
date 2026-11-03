@@ -48,6 +48,7 @@
       "additionalProperties": false,
       "required": [
         "userId",
+        "username",
         "email",
         "role",
         "status"
@@ -57,6 +58,11 @@
           "type": "string",
           "format": "uuid"
         },
+        "username": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 120
+        },
         "email": {
           "type": "string",
           "format": "email"
@@ -65,7 +71,8 @@
           "type": "string",
           "enum": [
             "USER",
-            "BUSINESS_OWNER",
+            "OPERATOR",
+            "SUPERVISOR",
             "ADMIN"
           ]
         },
