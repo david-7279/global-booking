@@ -11,5 +11,6 @@ public record ResourceResponse(
         int capacity,
         String status,
         Instant createdAt,
-        Instant updatedAt) {
+        Instant updatedAt
+) {
 }

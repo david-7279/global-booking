@@ -11,6 +11,7 @@ public record EstablishmentRequest(
         @Size(max = 500)
         String address,
 
-        @NotBlank @Size(max = 80)
+        @NotBlank
+        @Size(max = 80)
         String timezone) {
 }

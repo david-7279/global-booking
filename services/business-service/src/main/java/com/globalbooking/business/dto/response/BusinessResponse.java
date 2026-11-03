@@ -10,5 +10,6 @@ public record BusinessResponse(
         String description,
         String status,
         Instant createdAt,
-        Instant updatedAt) {
+        Instant updatedAt
+) {
 }

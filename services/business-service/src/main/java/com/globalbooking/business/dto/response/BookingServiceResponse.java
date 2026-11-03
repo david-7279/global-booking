@@ -13,5 +13,6 @@ public record BookingServiceResponse(
         String currency,
         String status,
         Instant createdAt,
-        Instant updatedAt) {
+        Instant updatedAt
+) {
 }
