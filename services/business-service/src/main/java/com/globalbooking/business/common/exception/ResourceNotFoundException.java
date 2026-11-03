@@ -5,6 +5,10 @@ import org.springframework.http.HttpStatus;
 
 public class ResourceNotFoundException extends BusinessException {
 
+    public ResourceNotFoundException(String message) {
+        this(ErrorCode.INVALID_REQUEST, message);
+    }
+
     public ResourceNotFoundException(
             ErrorCode errorCode,
             String message
