@@ -35,7 +35,7 @@ CREATE TABLE booking_services
     description      VARCHAR(1000),
     duration_minutes INTEGER                  NOT NULL,
     price_cents      BIGINT                   NOT NULL,
-    currency         CHAR(3)                  NOT NULL,
+    currency         VARCHAR(3)               NOT NULL,
     status           VARCHAR(30)              NOT NULL,
     created_at       TIMESTAMP WITH TIME ZONE NOT NULL,
     updated_at       TIMESTAMP WITH TIME ZONE NOT NULL,

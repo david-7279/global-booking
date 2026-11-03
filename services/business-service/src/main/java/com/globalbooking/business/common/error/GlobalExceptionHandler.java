@@ -27,7 +27,7 @@ public class GlobalExceptionHandler {
      * Handles application-specific exceptions.
      */
     @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ApiError> handleBussinessException(
+    public ResponseEntity<ApiError> handleBusinessException(
             BusinessException ex,
             HttpServletRequest request
     ) {
