@@ -1,11 +1,14 @@
 package com.globalbooking.booking.service;
 
+import com.globalbooking.booking.dto.request.AvailabilityRequest;
+import com.globalbooking.booking.dto.request.CreateBookingRequest;
+import com.globalbooking.booking.dto.response.AvailabilityResponse;
+import com.globalbooking.booking.dto.response.BookingResponse;
 import com.globalbooking.booking.shared.common.BookingExceptions.CatalogValidationException;
 import com.globalbooking.booking.shared.common.BookingExceptions.ConflictException;
 import com.globalbooking.booking.shared.common.BookingExceptions.ForbiddenException;
 import com.globalbooking.booking.shared.common.BookingExceptions.NotFoundException;
 import com.globalbooking.booking.domain.*;
-import com.globalbooking.booking.dto.BookingDtos.*;
 import com.globalbooking.booking.mapper.BookingMapper;
 import com.globalbooking.booking.repository.*;
 import com.globalbooking.booking.security.Actor;

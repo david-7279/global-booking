@@ -1,6 +1,10 @@
 package com.globalbooking.booking.controller;
 
-import com.globalbooking.booking.dto.BookingDtos.*;
+import com.globalbooking.booking.dto.request.AvailabilityRequest;
+import com.globalbooking.booking.dto.request.CreateBookingRequest;
+import com.globalbooking.booking.dto.request.TransitionRequest;
+import com.globalbooking.booking.dto.response.AvailabilityResponse;
+import com.globalbooking.booking.dto.response.BookingResponse;
 import com.globalbooking.booking.security.Actor;
 import com.globalbooking.booking.service.BookingApplicationService;
 import jakarta.validation.Valid;
@@ -57,7 +61,7 @@ public class BookingController {
     }
 
     @GetMapping("/availability")
-    public AvailabilityResponse availability(@Valid AvailabilityRequest request) {
+    public AvailabilityResponse availability(@Valid AvailabilityRequest  request) {
         return service.availability(request);
     }
 }

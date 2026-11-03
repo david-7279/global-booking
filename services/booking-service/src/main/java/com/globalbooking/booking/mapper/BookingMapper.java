@@ -1,7 +1,7 @@
 package com.globalbooking.booking.mapper;
 
 import com.globalbooking.booking.domain.Booking;
-import com.globalbooking.booking.dto.BookingDtos.BookingResponse;
+import com.globalbooking.booking.dto.response.BookingResponse;
 import org.springframework.stereotype.Component;
 
 @Component
