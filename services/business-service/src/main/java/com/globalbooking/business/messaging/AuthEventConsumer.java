@@ -45,7 +45,11 @@ public class AuthEventConsumer {
         }
     }
 
-    private record AuthEventEnvelope(UUID eventId, String eventType, int eventVersion, Instant occurredAt,
-                                     JsonNode data) {
+    private record AuthEventEnvelope(
+            UUID eventId,
+            String eventType,
+            int eventVersion,
+            Instant occurredAt,
+            JsonNode data) {
     }
 }
