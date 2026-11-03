@@ -1,6 +1,9 @@
 package com.globalbooking.business.domain;
 
-import jakarta.persistence.*;
+import com.globalbooking.business.shared.BaseEntity;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 import lombok.Getter;
 
 import java.time.Instant;
@@ -9,10 +12,7 @@ import java.util.UUID;
 @Getter
 @Entity
 @Table(name = "user_profiles")
-public class UserProfile {
-    @Id
-    private UUID id;
-
+public class UserProfile extends BaseEntity {
     @Column(name = "user_id", nullable = false, unique = true)
     private UUID userId;
 
@@ -25,33 +25,21 @@ public class UserProfile {
     @Column(nullable = false, length = 50)
     private String role;
 
+    // This mirrors the auth-service contract and may evolve independently from business-resource Status.
     @Column(nullable = false, length = 50)
     private String status;
-
-    @Column(name = "created_at", nullable = false)
-    private Instant createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    private Instant updatedAt;
-
-    @Column(name = "deleted_at")
-    private Instant deletedAt;
 
     @Column(name = "last_event_at", nullable = false)
     private Instant lastEventAt;
 
-    protected UserProfile() {
-    }
+    protected UserProfile() {}
 
     public UserProfile(UUID userId, String email, String username, String role, String status, Instant eventAt) {
-        this.id = UUID.randomUUID();
         this.userId = userId;
         this.email = email;
         this.username = username;
         this.role = role;
         this.status = status;
-        this.createdAt = Instant.now();
-        this.updatedAt = createdAt;
         this.lastEventAt = eventAt;
     }
 
@@ -60,21 +48,17 @@ public class UserProfile {
         this.username = username;
         this.role = role;
         this.status = status;
-        this.deletedAt = null;
-        this.updatedAt = Instant.now();
         this.lastEventAt = eventAt;
     }
 
-    public void markDeleted(Instant deletedAt, Instant eventAt) {
+    public void markDeleted(Instant eventAt) {
         this.status = "DELETED";
-        this.deletedAt = deletedAt;
-        this.updatedAt = deletedAt;
         this.lastEventAt = eventAt;
+        markDeleted();
     }
 
     public void changeStatus(String status, Instant eventAt) {
         this.status = status;
-        this.updatedAt = Instant.now();
         this.lastEventAt = eventAt;
     }
 
