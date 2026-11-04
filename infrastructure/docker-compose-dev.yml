@@ -214,14 +214,26 @@ services:
       - global-booking-network
 
   frontend:
-    build:
-      context: ../frontend
-      args:
-        VITE_API_URL: ${VITE_API_URL:-/api}
-    container_name: global-booking-frontend
+    image: node:22-alpine
+    container_name: global-booking-frontend-dev
+    working_dir: /app
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+      VITE_DEV_API_PROXY_TARGET: ${VITE_DEV_API_PROXY_TARGET:-http://api-gateway:8080}
+      VITE_USE_POLLING: "true"
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
     volumes:
-      - frontend-dist:/target
-    restart: "no"
+      # O código local é montado no container para o Vite detetar alterações.
+      - ../frontend:/app
+      # Evita que o bind mount esconda os node_modules instalados no container.
+      - frontend_node_modules:/app/node_modules
+      # Cache persistente opcional para acelerar reinstalações.
+      - pnpm_store:/root/.local/share/pnpm/store
+    command: >-
+      sh -c "corepack enable && pnpm install --frozen-lockfile &&
+      pnpm dev --host 0.0.0.0 --port 5173"
+    restart: unless-stopped
     networks:
       - global-booking-network
 
@@ -232,11 +244,7 @@ services:
     restart: unless-stopped
     ports:
       - "${GATEWAY_PORT:-3000}:8080"
-    volumes:
-      - frontend-dist:/usr/share/nginx/html:ro
     depends_on:
-      frontend:
-        condition: service_completed_successfully
       auth-service:
         condition: service_healthy
       business-service:
@@ -249,7 +257,8 @@ services:
 volumes:
   postgres_data:
   rabbitmq_data:
-  frontend-dist:
+  frontend_node_modules:
+  pnpm_store:
 
 networks:
   global-booking-network:
