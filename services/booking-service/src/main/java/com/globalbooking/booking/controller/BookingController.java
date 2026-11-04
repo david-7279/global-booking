@@ -1,6 +1,8 @@
 package com.globalbooking.booking.controller;
 
+import com.globalbooking.booking.domain.BookingStatus;
 import com.globalbooking.booking.dto.request.AvailabilityRequest;
+import com.globalbooking.booking.dto.request.BookingFilter;
 import com.globalbooking.booking.dto.request.CreateBookingRequest;
 import com.globalbooking.booking.dto.request.TransitionRequest;
 import com.globalbooking.booking.dto.response.AvailabilityResponse;
@@ -17,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @RestController
@@ -31,8 +34,14 @@ public class BookingController {
     }
 
     @GetMapping("/bookings")
-    public Page<BookingResponse> list(Authentication authentication, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
-        return service.list(Actor.from(authentication), PageRequest.of(Math.min(page, 1000), Math.min(size, 100), Sort.by(Sort.Direction.DESC, "createdAt")));
+    public Page<BookingResponse> list(Authentication authentication, @RequestParam(required = false) BookingStatus status, @RequestParam(required = false) UUID establishmentId, @RequestParam(required = false) UUID bookingServiceId, @RequestParam(required = false) UUID resourceId, @RequestParam(required = false) Instant from, @RequestParam(required = false) Instant to, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size, @RequestParam(defaultValue = "createdAt,desc") String sort) {
+        String[] sortParts = sort.split(",", 2);
+        String property = switch (sortParts[0]) {
+            case "createdAt", "updatedAt", "startAt", "endAt", "status" -> sortParts[0];
+            default -> "createdAt";
+        };
+        Sort.Direction direction = sortParts.length == 2 && "asc".equalsIgnoreCase(sortParts[1]) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        return service.list(Actor.from(authentication), new BookingFilter(status, establishmentId, bookingServiceId, resourceId, from, to), PageRequest.of(Math.min(Math.max(page, 0), 1000), Math.min(Math.max(size, 1), 100), Sort.by(direction, property)));
     }
 
     @GetMapping("/bookings/{id}")
@@ -61,7 +70,7 @@ public class BookingController {
     }
 
     @GetMapping("/availability")
-    public AvailabilityResponse availability(@Valid AvailabilityRequest  request) {
+    public AvailabilityResponse availability(@Valid AvailabilityRequest request) {
         return service.availability(request);
     }
 }

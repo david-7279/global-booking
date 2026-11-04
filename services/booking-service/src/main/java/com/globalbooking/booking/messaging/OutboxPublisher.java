@@ -25,10 +25,13 @@ public class OutboxPublisher {
 
     @Value("${app.messaging.exchange}")
     private String exchange;
+
     @Value("${app.messaging.max-attempts:3}")
     private int maxAttempts;
+
     @Value("${app.messaging.initial-backoff-ms:1000}")
     private long initialBackoff;
+
     @Value("${app.messaging.max-backoff-ms:10000}")
     private long maxBackoff;
 
