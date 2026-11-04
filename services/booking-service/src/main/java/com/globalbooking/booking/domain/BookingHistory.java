@@ -1,14 +1,8 @@
 package com.globalbooking.booking.domain;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import com.globalbooking.booking.shared.BaseEntity;
+import jakarta.persistence.*;
 import lombok.Getter;
-import org.hibernate.annotations.UuidGenerator;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -16,11 +10,7 @@ import java.util.UUID;
 @Getter
 @Entity
 @Table(name = "booking_history")
-public class BookingHistory {
-    @Id
-    @GeneratedValue
-    @UuidGenerator
-    private UUID id;
+public class BookingHistory extends BaseEntity {
 
     @Column(name = "booking_id", nullable = false)
     private UUID bookingId;
@@ -38,7 +28,7 @@ public class BookingHistory {
 
     @Column(nullable = false)
     private Instant occurredAt;
-    
+
     @Column(length = 500)
     private String reason;
 

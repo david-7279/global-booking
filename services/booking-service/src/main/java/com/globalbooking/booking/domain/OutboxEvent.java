@@ -1,8 +1,8 @@
 package com.globalbooking.booking.domain;
 
+import com.globalbooking.booking.shared.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Getter;
 
@@ -12,9 +12,8 @@ import java.util.UUID;
 @Getter
 @Entity
 @Table(name = "outbox_events")
-public class OutboxEvent {
-    @Id
-    private UUID id;
+public class OutboxEvent extends BaseEntity {
+
     @Column(name = "event_type", nullable = false, length = 100)
     private String eventType;
 
@@ -41,7 +40,7 @@ public class OutboxEvent {
 
     @Column(name = "dead_lettered_at")
     private Instant deadLetteredAt;
-    
+
     @Column(name = "last_error", columnDefinition = "TEXT")
     private String lastError;
 
@@ -49,7 +48,6 @@ public class OutboxEvent {
     }
 
     public OutboxEvent(String eventType, String routingKey, UUID aggregateId, String payload) {
-        this.id = UUID.randomUUID();
         this.eventType = eventType;
         this.routingKey = routingKey;
         this.aggregateId = aggregateId;

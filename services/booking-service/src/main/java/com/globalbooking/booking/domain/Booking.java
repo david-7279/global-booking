@@ -1,7 +1,7 @@
 package com.globalbooking.booking.domain;
 
-import com.globalbooking.booking.shared.common.InvalidTransitionException;
 import com.globalbooking.booking.shared.BaseEntity;
+import com.globalbooking.booking.shared.common.exception.InvalidTransitionException;
 import jakarta.persistence.*;
 import lombok.Getter;
 
@@ -12,6 +12,7 @@ import java.util.UUID;
 @Entity
 @Table(name = "bookings")
 public class Booking extends BaseEntity {
+
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
@@ -26,6 +27,9 @@ public class Booking extends BaseEntity {
 
     @Column(name = "resource_id", nullable = false)
     private UUID resourceId;
+
+    @Column(name = "allocation_slot", nullable = false)
+    private int allocationSlot;
 
     @Column(name = "start_at", nullable = false)
     private Instant startAt;
@@ -48,12 +52,18 @@ public class Booking extends BaseEntity {
 
     public Booking(UUID userId, UUID businessId, UUID establishmentId, UUID bookingServiceId, UUID resourceId,
                    Instant startAt, Instant endAt, String notes) {
+        this(userId, businessId, establishmentId, bookingServiceId, resourceId, 0, startAt, endAt, notes);
+    }
+
+    public Booking(UUID userId, UUID businessId, UUID establishmentId, UUID bookingServiceId, UUID resourceId,
+                   int allocationSlot, Instant startAt, Instant endAt, String notes) {
         if (!endAt.isAfter(startAt)) throw new IllegalArgumentException("endAt must be after startAt");
         this.userId = userId;
         this.businessId = businessId;
         this.establishmentId = establishmentId;
         this.bookingServiceId = bookingServiceId;
         this.resourceId = resourceId;
+        this.allocationSlot = allocationSlot;
         this.startAt = startAt;
         this.endAt = endAt;
         this.notes = notes;

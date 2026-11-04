@@ -1,20 +1,19 @@
 package com.globalbooking.booking.domain;
 
+import com.globalbooking.booking.shared.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Getter;
 
-import java.time.Instant;
 import java.util.UUID;
 
 @Getter
 @Entity
-@Table(name = "idempotency_records")
-public class IdempotencyRecord {
-    @Id
-    @Column(name = "idempotency_key", length = 200)
+@Table(name = "idempotency_records", uniqueConstraints = @jakarta.persistence.UniqueConstraint(name = "uk_idempotency_records_key_user", columnNames = {"idempotency_key", "user_id"}))
+public class IdempotencyRecord extends BaseEntity {
+
+    @Column(name = "idempotency_key", nullable = false, length = 200)
     private String key;
 
     @Column(name = "user_id", nullable = false)
@@ -25,9 +24,6 @@ public class IdempotencyRecord {
 
     @Column(name = "booking_id", nullable = false)
     private UUID bookingId;
-    
-    @Column(name = "created_at", nullable = false)
-    private Instant createdAt;
 
     protected IdempotencyRecord() {
     }
@@ -37,6 +33,5 @@ public class IdempotencyRecord {
         this.userId = userId;
         this.requestHash = requestHash;
         this.bookingId = bookingId;
-        this.createdAt = Instant.now();
     }
 }
