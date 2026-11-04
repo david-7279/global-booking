@@ -1,0 +1,80 @@
+spring:
+  application:
+    name: notification-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:prod}
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:notification_service}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_INTERNAL_PORT:5672}
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
+    virtual-host: ${RABBITMQ_VHOST:global-booking}
+    listener:
+      simple:
+        acknowledge-mode: manual
+        default-requeue-rejected: false
+        prefetch: ${NOTIFICATION_PREFETCH:10}
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${MAIL_SMTP_AUTH:false}
+      mail.smtp.starttls.enable: ${MAIL_SMTP_STARTTLS:false}
+      mail.smtp.connectiontimeout: ${MAIL_CONNECTION_TIMEOUT_MS:5000}
+      mail.smtp.timeout: ${MAIL_READ_TIMEOUT_MS:5000}
+      mail.smtp.writetimeout: ${MAIL_WRITE_TIMEOUT_MS:5000}
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  health:
+    mail:
+      enabled: ${MAIL_ENABLED:false}
+
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    issuer: ${JWT_ISSUER:global-booking-auth-service}
+    audience: ${JWT_AUDIENCE:global-booking-api}
+  messaging:
+    auth-events-queue: ${NOTIFICATION_AUTH_EVENTS_QUEUE:notification-service.auth-events}
+    booking-events-queue: ${NOTIFICATION_BOOKING_EVENTS_QUEUE:notification-service.booking-events}
+    retry:
+      delays-ms: ${NOTIFICATION_RETRY_DELAYS_MS:5000,30000,300000}
+      max-attempts: ${NOTIFICATION_RETRY_MAX_ATTEMPTS:3}
+  notification:
+    dispatch-delay-ms: ${NOTIFICATION_DISPATCH_DELAY_MS:2000}
+    dispatch-batch-size: ${NOTIFICATION_DISPATCH_BATCH_SIZE:50}
+    max-delivery-attempts: ${NOTIFICATION_MAX_DELIVERY_ATTEMPTS:3}
+    initial-backoff-ms: ${NOTIFICATION_DELIVERY_INITIAL_BACKOFF_MS:5000}
+    max-backoff-ms: ${NOTIFICATION_DELIVERY_MAX_BACKOFF_MS:300000}
+    interrupted-delivery-threshold-ms: ${NOTIFICATION_INTERRUPTED_DELIVERY_THRESHOLD_MS:600000}
+    default-locale: ${NOTIFICATION_DEFAULT_LOCALE:en}
+  mail:
+    enabled: ${MAIL_ENABLED:false}
+    from: ${MAIL_FROM:no-reply@global-booking.local}
+    from-name: ${MAIL_FROM_NAME:Global Booking}
+    subject-prefix: ${MAIL_SUBJECT_PREFIX:[Global Booking]}
