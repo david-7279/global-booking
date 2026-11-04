@@ -1,7 +1,7 @@
 {
   "info": {
     "_postman_id": "8af1c0cb-0a0f-4ac8-9c71-0c1b9d3cf001",
-    "name": "Global Booking — Auth and Business API",
+    "name": "Global Booking — Auth, Business and Booking API",
     "description": "Postman v2.1 collection for the Global Booking auth-service and business-service.\\n\\nAuthResponse is { tokens, user }. Access and refresh tokens are captured automatically. All business-domain requests inherit the collection Bearer token. The business CRUD flow is chained: Business → Establishment → BookingService/Resource.\\n\\nRecommended runner order: Register → Login → Auth checks → Business CRUD → Logout.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
@@ -139,6 +139,46 @@
     },
     {
       "key": "otherBusinessId",
+      "value": ""
+    },
+    {
+      "key": "bookingStartAt",
+      "value": ""
+    },
+    {
+      "key": "bookingEndAt",
+      "value": ""
+    },
+    {
+      "key": "bookingDurationMinutes",
+      "value": "60"
+    },
+    {
+      "key": "bookingId",
+      "value": ""
+    },
+    {
+      "key": "cancelStartAt",
+      "value": ""
+    },
+    {
+      "key": "cancelEndAt",
+      "value": ""
+    },
+    {
+      "key": "cancelBookingId",
+      "value": ""
+    },
+    {
+      "key": "idempotencyKey",
+      "value": ""
+    },
+    {
+      "key": "cancelIdempotencyKey",
+      "value": ""
+    },
+    {
+      "key": "timestamp",
       "value": ""
     }
   ],
@@ -1976,6 +2016,509 @@
             "description": "Final cleanup: soft-deletes the business."
           },
           "response": []
+        }
+      ]
+    },
+    {
+      "name": "Booking API",
+      "description": "Booking API phase 2: availability, capacity-aware creation, advanced filters, state transitions, idempotency and negative cases. All authenticated requests inherit the collection Bearer JWT.",
+      "item": [
+        {
+          "name": "Happy path and filters",
+          "description": "Run after the Business API chained CRUD has created businessId, establishmentId, bookingServiceId and resourceId.",
+          "item": [
+            {
+              "name": "GET /api/availability — available interval (200)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrlBooking}}/api/availability?establishmentId={{establishmentId}}&bookingServiceId={{bookingServiceId}}&resourceId={{resourceId}}&from={{bookingStartAt}}&to={{bookingEndAt}}",
+                "description": "Checks the current capacity and optional weekly operating schedule before creation."
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const start = new Date(Date.now() + 60 * 60 * 1000); start.setSeconds(0, 0); const end = new Date(start.getTime() + Number(pm.environment.get('bookingDurationMinutes') || 60) * 60 * 1000); pm.collectionVariables.set('bookingStartAt', start.toISOString()); pm.collectionVariables.set('bookingEndAt', end.toISOString());"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Response time is within the configured limit', () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)));",
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "const b=pm.response.json(); pm.test('Availability response shape is valid', () => { pm.expect(b.startAt).to.be.a('string'); pm.expect(b.endAt).to.be.a('string'); pm.expect(b.available).to.be.a('boolean'); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "POST /api/bookings — create (201)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idempotencyKey}}",
+                    "type": "text"
+                  }
+                ],
+                "url": "{{baseUrlBooking}}/api/bookings",
+                "description": "Creates a booking using the JWT subject as userId and a new Idempotency-Key.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"businessId\": \"{{businessId}}\",\n  \"establishmentId\": \"{{establishmentId}}\",\n  \"bookingServiceId\": \"{{bookingServiceId}}\",\n  \"resourceId\": \"{{resourceId}}\",\n  \"startAt\": \"{{bookingStartAt}}\",\n  \"endAt\": \"{{bookingEndAt}}\",\n  \"notes\": \"Postman integration booking\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const start = new Date(Date.now() + 60 * 60 * 1000);",
+                      "start.setSeconds(0, 0);",
+                      "const end = new Date(start.getTime() + Number(pm.environment.get('bookingDurationMinutes') || 60) * 60 * 1000);",
+                      "pm.collectionVariables.set('bookingStartAt', start.toISOString());",
+                      "pm.collectionVariables.set('bookingEndAt', end.toISOString());",
+                      "pm.collectionVariables.set('idempotencyKey', 'booking-' + Date.now());"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Response time is within the configured limit', () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)));",
+                      "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                      "const b=pm.response.json();",
+                      "pm.test('Booking response shape is valid', () => { pm.expect(b.id).to.be.a('string').and.not.empty; pm.expect(b.userId).to.equal(pm.collectionVariables.get('activeUserId')); pm.expect(b.status).to.equal('PENDING'); pm.expect(b.resourceId).to.equal(pm.collectionVariables.get('resourceId')); });",
+                      "pm.collectionVariables.set('bookingId', b.id);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "GET /api/bookings — filtered and paginated (200)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrlBooking}}/api/bookings?status=PENDING&resourceId={{resourceId}}&from={{bookingStartAt}}&to={{bookingEndAt}}&page=0&size=20&sort=startAt,asc",
+                "description": "Exercises status, resource, time-window, pagination and sort filters."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Response time is within the configured limit', () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)));",
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "const b=pm.response.json(); pm.test('Page response shape is valid', () => { pm.expect(b.content).to.be.an('array'); pm.expect(b.number).to.be.a('number'); pm.expect(b.size).to.be.a('number'); pm.expect(b.totalElements).to.be.a('number'); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "GET /api/bookings/{id} — owner access (200)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrlBooking}}/api/bookings/{{bookingId}}",
+                "description": ""
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Response time is within the configured limit', () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)));",
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Returned id matches the created booking', () => pm.expect(pm.response.json().id).to.equal(pm.collectionVariables.get('bookingId')));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "POST /api/bookings/{id}/confirm — success (200)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": "{{baseUrlBooking}}/api/bookings/{{bookingId}}/confirm",
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Confirmed by Postman integration flow\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Response time is within the configured limit', () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)));",
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Booking is confirmed', () => pm.expect(pm.response.json().status).to.equal('CONFIRMED'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "POST /api/bookings/{id}/complete — success (200)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": "{{baseUrlBooking}}/api/bookings/{{bookingId}}/complete",
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Completed by Postman integration flow\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Response time is within the configured limit', () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)));",
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Booking is completed', () => pm.expect(pm.response.json().status).to.equal('COMPLETED'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "POST /api/bookings — create cancellation candidate (201)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{cancelIdempotencyKey}}",
+                    "type": "text"
+                  }
+                ],
+                "url": "{{baseUrlBooking}}/api/bookings",
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"businessId\": \"{{businessId}}\",\n  \"establishmentId\": \"{{establishmentId}}\",\n  \"bookingServiceId\": \"{{bookingServiceId}}\",\n  \"resourceId\": \"{{resourceId}}\",\n  \"startAt\": \"{{cancelStartAt}}\",\n  \"endAt\": \"{{cancelEndAt}}\",\n  \"notes\": \"Postman cancellation candidate\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const start = new Date(Date.now() + 4 * 60 * 60 * 1000);",
+                      "start.setSeconds(0, 0);",
+                      "const end = new Date(start.getTime() + Number(pm.environment.get('bookingDurationMinutes') || 60) * 60 * 1000);",
+                      "pm.collectionVariables.set('cancelStartAt', start.toISOString());",
+                      "pm.collectionVariables.set('cancelEndAt', end.toISOString());",
+                      "pm.collectionVariables.set('cancelIdempotencyKey', 'cancel-booking-' + Date.now());"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Response time is within the configured limit', () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)));",
+                      "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                      "const b=pm.response.json(); pm.collectionVariables.set('cancelBookingId', b.id); pm.test('Cancellation candidate is pending', () => pm.expect(b.status).to.equal('PENDING'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "POST /api/bookings/{id}/cancel — success (200)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": "{{baseUrlBooking}}/api/bookings/{{cancelBookingId}}/cancel",
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Customer requested cancellation\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Response time is within the configured limit', () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)));",
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Booking is cancelled', () => pm.expect(pm.response.json().status).to.equal('CANCELLED'));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Invalid and security cases",
+          "item": [
+            {
+              "name": "POST /api/bookings — missing Idempotency-Key (409)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": "{{baseUrlBooking}}/api/bookings",
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"businessId\": \"{{businessId}}\",\n  \"establishmentId\": \"{{establishmentId}}\",\n  \"bookingServiceId\": \"{{bookingServiceId}}\",\n  \"resourceId\": \"{{resourceId}}\",\n  \"startAt\": \"{{bookingStartAt}}\",\n  \"endAt\": \"{{bookingEndAt}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Response time is within the configured limit', () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)));",
+                      "pm.test('Status is 409', () => pm.response.to.have.status(409));",
+                      "pm.test('Error body is consistent', () => pm.expect(pm.response.json().code).to.be.a('string'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "POST /api/bookings — same key different payload (409)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idempotencyKey}}",
+                    "type": "text"
+                  }
+                ],
+                "url": "{{baseUrlBooking}}/api/bookings",
+                "description": "Reuses the successful create key with different content.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"businessId\": \"{{businessId}}\",\n  \"establishmentId\": \"{{establishmentId}}\",\n  \"bookingServiceId\": \"{{bookingServiceId}}\",\n  \"resourceId\": \"{{resourceId}}\",\n  \"startAt\": \"{{bookingStartAt}}\",\n  \"endAt\": \"{{bookingEndAt}}\",\n  \"notes\": \"different payload\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Response time is within the configured limit', () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)));",
+                      "pm.test('Status is 409', () => pm.response.to.have.status(409));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "POST /api/bookings — overlapping interval (409)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "overlap-{{$guid}}",
+                    "type": "text"
+                  }
+                ],
+                "url": "{{baseUrlBooking}}/api/bookings",
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"businessId\": \"{{businessId}}\",\n  \"establishmentId\": \"{{establishmentId}}\",\n  \"bookingServiceId\": \"{{bookingServiceId}}\",\n  \"resourceId\": \"{{resourceId}}\",\n  \"startAt\": \"{{bookingStartAt}}\",\n  \"endAt\": \"{{bookingEndAt}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Response time is within the configured limit', () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)));",
+                      "pm.test('Status is 409', () => pm.response.to.have.status(409));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "GET /api/bookings/{id} — nonexistent (404)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrlBooking}}/api/bookings/{{nonexistentId}}",
+                "description": ""
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Response time is within the configured limit', () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)));",
+                      "pm.test('Status is 404', () => pm.response.to.have.status(404));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "POST /api/bookings/{id}/confirm — invalid terminal transition (409)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": "{{baseUrlBooking}}/api/bookings/{{bookingId}}/confirm",
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Must not confirm a completed booking\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Response time is within the configured limit', () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)));",
+                      "pm.test('Status is 409', () => pm.response.to.have.status(409));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "GET /api/bookings — no token (401)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrlBooking}}/api/bookings",
+                "description": "",
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Response time is within the configured limit', () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)));",
+                      "pm.test('Status is 401', () => pm.response.to.have.status(401));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "GET /api/bookings — malformed token (401)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrlBooking}}/api/bookings",
+                "description": "",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{malformedAccessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Response time is within the configured limit', () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get('maxResponseTimeMs') || 3000)));",
+                      "pm.test('Status is 401', () => pm.response.to.have.status(401));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
         }
       ]
     }
