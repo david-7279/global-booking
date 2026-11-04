@@ -1,7 +1,8 @@
 package com.globalbooking.booking.service;
 
-import com.globalbooking.booking.shared.common.BookingExceptions.CatalogUnavailableException;
-import com.globalbooking.booking.shared.common.BookingExceptions.CatalogValidationException;
+import com.globalbooking.booking.shared.common.exception.CatalogUnavailableException;
+import com.globalbooking.booking.shared.common.exception.CatalogValidationException;
+import com.globalbooking.booking.dto.response.CatalogItem;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
@@ -40,6 +41,14 @@ public class CatalogClient {
         return get("/api/services/" + serviceId, "booking service");
     }
 
+    public CatalogItem getEstablishment(UUID establishmentId) {
+        return get("/api/establishments/" + establishmentId, "establishment");
+    }
+
+    public CatalogItem getResource(UUID resourceId) {
+        return get("/api/resources/" + resourceId, "resource");
+    }
+
     public CatalogItem getBusiness(UUID businessId) {
         return get("/api/businesses/" + businessId, "business");
     }
@@ -60,17 +69,14 @@ public class CatalogClient {
                         throw new CatalogValidationException(name + " was not found.");
                     })
                     .onStatus(HttpStatusCode::is5xxServerError, (httpRequest, httpResponse) -> {
-                        throw new CatalogUnavailableException("Catalog service returned an error.", null);
+                        throw new CatalogUnavailableException("Catalog service returned an error.");
                     })
                     .body(CatalogItem.class);
         } catch (CatalogValidationException | CatalogUnavailableException exception) {
             throw exception;
         } catch (RestClientException exception) {
-            throw new CatalogUnavailableException("Catalog service is unavailable.", exception);
+            throw new CatalogUnavailableException("Catalog service is unavailable.");
         }
     }
 
-    public record CatalogItem(UUID id, UUID ownerUserId, UUID businessId, UUID establishmentId, Integer durationMinutes,
-                              String status) {
-    }
 }
