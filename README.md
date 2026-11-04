@@ -49,11 +49,13 @@ global-booking/
 ├── services/
 │   ├── auth-service/
 │   ├── business-service/
-│   ├── appointment-service/
+│   ├── booking-service/
 │   └── notification-service/
 │
 ├── gateway/
 │   └── api-gateway/
+│
+├── frontend/
 │
 ├── infrastructure/
 │   ├── .env.example
@@ -117,6 +119,12 @@ docker compose --env-file infrastructure/.env -f infrastructure/docker-compose-d
 docker compose --env-file infrastructure/.env -f infrastructure/docker-compose-dev.yml logs -f booking-service
 ```
 
+#### Check the logs of the notification-service
+
+```bash
+docker compose --env-file infrastructure/.env -f infrastructure/docker-compose-dev.yml logs -f notification-service
+```
+
 #### Check the status of RabbitMQ
 
 ```bash
@@ -134,6 +142,23 @@ docker inspect --format='{{json .State.Health}}' global-booking-rabbitmq
 ```text
 http://localhost:15672
 ```
+
+#### Mailpit UI (emails captured in development)
+
+```text
+http://localhost:8025
+```
+
+### Local endpoints
+
+| Service              | URL                    |
+|----------------------|------------------------|
+| auth-service         | http://localhost:8081  |
+| business-service     | http://localhost:8082  |
+| booking-service      | http://localhost:8083  |
+| notification-service | http://localhost:8084  |
+| RabbitMQ management  | http://localhost:15672 |
+| Mailpit (dev email)  | http://localhost:8025  |
 
 ### Stop everything
 
@@ -172,6 +197,14 @@ RabbitMQ
    ↓
 Customer Notification
 ```
+
+## Documentation
+
+- [Event contracts](./docs/events/README.md)
+- [Business service contract](./docs/business-service-contract.md)
+- [Booking service implementation report](./docs/booking-service-implementation-report.md)
+- [Notification service contract](./docs/notification-service-contract.md)
+- [Notification service implementation report](./docs/notification-service-implementation-report.md)
 
 ## License
 
