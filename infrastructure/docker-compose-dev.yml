@@ -13,7 +13,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}" ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -36,7 +36,7 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
       interval: 10s
       timeout: 10s
       retries: 10
@@ -80,7 +80,7 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health/liveness"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health/liveness" ]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -117,7 +117,7 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health/liveness"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health/liveness" ]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -157,7 +157,7 @@ services:
       business-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health/liveness"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health/liveness" ]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -165,9 +165,91 @@ services:
     networks:
       - global-booking-network
 
+  notification-service:
+    build:
+      context: ../services/notification-service
+      dockerfile: Dockerfile
+    container_name: global-booking-notification-service
+    restart: unless-stopped
+    ports:
+      - "${NOTIFICATION_SERVICE_PORT:-8083}:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${NOTIFICATION_DB_NAME:?NOTIFICATION_DB_NAME is required}
+      DB_USERNAME: ${NOTIFICATION_DB_USERNAME:?NOTIFICATION_DB_USERNAME is required}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_INTERNAL_PORT: 5672
+      RABBITMQ_USERNAME: ${RABBITMQ_USER:?RABBITMQ_USER is required}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST:-global-booking}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_ISSUER: ${JWT_ISSUER:-global-booking-auth-service}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-global-booking-api}
+      NOTIFICATION_PREFETCH: ${NOTIFICATION_PREFETCH:-10}
+      NOTIFICATION_RETRY_DELAYS_MS: ${NOTIFICATION_RETRY_DELAYS_MS:-5000,30000,300000}
+      NOTIFICATION_RETRY_MAX_ATTEMPTS: ${NOTIFICATION_RETRY_MAX_ATTEMPTS:-3}
+      NOTIFICATION_DISPATCH_DELAY_MS: ${NOTIFICATION_DISPATCH_DELAY_MS:-2000}
+      NOTIFICATION_MAX_DELIVERY_ATTEMPTS: ${NOTIFICATION_MAX_DELIVERY_ATTEMPTS:-3}
+      MAIL_ENABLED: "true"
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+      MAIL_FROM: ${MAIL_FROM:-no-reply@global-booking.local}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-Global Booking}
+      MAIL_SUBJECT_PREFIX: ${MAIL_SUBJECT_PREFIX:-[Global Booking]}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health/liveness" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    networks:
+      - global-booking-network
+
+  frontend:
+    build:
+      context: ../frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api}
+    container_name: global-booking-frontend
+    volumes:
+      - frontend-dist:/target
+    restart: "no"
+    networks:
+      - global-booking-network
+
+  api-gateway:
+    build:
+      context: ../gateway/api-gateway
+    container_name: global-booking-api-gateway
+    restart: unless-stopped
+    ports:
+      - "${GATEWAY_PORT:-3000}:8080"
+    volumes:
+      - frontend-dist:/usr/share/nginx/html:ro
+    depends_on:
+      frontend:
+        condition: service_completed_successfully
+      auth-service:
+        condition: service_healthy
+      business-service:
+        condition: service_healthy
+      booking-service:
+        condition: service_healthy
+    networks:
+      - global-booking-network
+
 volumes:
   postgres_data:
   rabbitmq_data:
+  frontend-dist:
 
 networks:
   global-booking-network:

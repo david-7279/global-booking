@@ -180,6 +180,64 @@ services:
     cap_add:
       - NET_BIND_SERVICE
 
+  notification-service:
+    build:
+      context: ../services/notification-service
+      dockerfile: Dockerfile
+    container_name: global-booking-notification-service
+    restart: unless-stopped
+    expose:
+      - "8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:?SPRING_PROFILES_ACTIVE is required}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${NOTIFICATION_DB_NAME:?NOTIFICATION_DB_NAME is required}
+      DB_USERNAME: ${NOTIFICATION_DB_USERNAME:?NOTIFICATION_DB_USERNAME is required}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_INTERNAL_PORT: 5672
+      RABBITMQ_USERNAME: ${RABBITMQ_USER:?RABBITMQ_USER is required}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST:-global-booking}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_ISSUER: ${JWT_ISSUER:-global-booking-auth-service}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-global-booking-api}
+      NOTIFICATION_PREFETCH: ${NOTIFICATION_PREFETCH:-10}
+      NOTIFICATION_RETRY_DELAYS_MS: ${NOTIFICATION_RETRY_DELAYS_MS:-5000,30000,300000}
+      NOTIFICATION_RETRY_MAX_ATTEMPTS: ${NOTIFICATION_RETRY_MAX_ATTEMPTS:-3}
+      NOTIFICATION_DISPATCH_DELAY_MS: ${NOTIFICATION_DISPATCH_DELAY_MS:-2000}
+      NOTIFICATION_MAX_DELIVERY_ATTEMPTS: ${NOTIFICATION_MAX_DELIVERY_ATTEMPTS:-3}
+      MAIL_ENABLED: ${MAIL_ENABLED:-false}
+      MAIL_HOST: ${MAIL_HOST:-localhost}
+      MAIL_PORT: ${MAIL_PORT:-1025}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-false}
+      MAIL_SMTP_STARTTLS: ${MAIL_SMTP_STARTTLS:-false}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@global-booking.local}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-Global Booking}
+      MAIL_SUBJECT_PREFIX: ${MAIL_SUBJECT_PREFIX:-[Global Booking]}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health/liveness"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    networks:
+      - global-booking-network
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+
 volumes:
   globalbooking_pgdata:
     driver: local
