@@ -1,6 +1,7 @@
-import { legalDocuments } from '@/src/(default)/legal/content/legal-content.ts'
-import { LegalLayout } from '@/src/(default)/legal/ui/legal-layout.tsx'
+// src/(default)/legal/ui/terms/page.tsx
+
+import { LegalPage } from '@/src/(default)/legal/ui/legal-page.tsx'
 
 export default function TermsPage() {
-    return <LegalLayout document={legalDocuments.terms} />
+    return <LegalPage documentId="terms" />
 }

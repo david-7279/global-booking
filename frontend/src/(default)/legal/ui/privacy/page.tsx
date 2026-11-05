@@ -1,6 +1,7 @@
-import { legalDocuments } from '@/src/(default)/legal/content/legal-content.ts'
-import { LegalLayout } from '@/src/(default)/legal/ui/legal-layout.tsx'
+// src/(default)/legal/ui/privacy/page.tsx
+
+import { LegalPage } from '@/src/(default)/legal/ui/legal-page.tsx'
 
 export default function PrivacyPage() {
-    return <LegalLayout document={legalDocuments.privacy} />
+    return <LegalPage documentId="privacy" />
 }
