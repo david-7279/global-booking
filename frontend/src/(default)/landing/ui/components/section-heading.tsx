@@ -12,18 +12,18 @@ type SectionHeadingProps = {
 /** Eyebrow + title + intro, shared by every section so rhythm stays consistent. */
 export function SectionHeading({ id, heading, className }: SectionHeadingProps) {
     return (
-        <div className={cn('max-w-2xl', className)}>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+        <div className={cn('max-w-3xl', className)}>
+            <p className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.18em] text-primary before:h-px before:w-8 before:shrink-0 before:bg-primary">
                 {heading.eyebrow}
             </p>
             <h2
                 id={id}
-                className="mt-4 font-heading text-4xl leading-[1.05] tracking-tight text-balance sm:text-5xl"
+                className="mt-5 max-w-3xl font-heading text-4xl leading-[1.08] tracking-tight text-balance text-foreground sm:text-5xl lg:text-[3.5rem]"
             >
                 {heading.title}
             </h2>
             {heading.intro ? (
-                <p className="mt-5 text-pretty text-lg leading-8 text-muted-foreground">
+                <p className="mt-5 max-w-2xl text-pretty text-lg leading-8 text-muted-foreground">
                     {heading.intro}
                 </p>
             ) : null}

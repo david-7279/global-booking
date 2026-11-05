@@ -11,36 +11,37 @@ type CtaSectionProps = {
 export function CtaSection({ cta }: CtaSectionProps) {
     return (
         <section aria-labelledby="landing-cta-title">
-            <Reveal className="mx-auto w-full max-w-6xl px-6 pb-20 lg:px-8 lg:pb-28">
-                <div className="relative isolate overflow-hidden bg-primary px-8 py-16 text-primary-foreground sm:px-14 sm:py-20">
+            <Reveal className="mx-auto w-full max-w-7xl px-6 py-20 lg:px-8 lg:py-28">
+                <div className="relative isolate overflow-hidden rounded-[2rem] border border-primary bg-primary px-6 py-14 text-primary-foreground shadow-xl shadow-primary/10 sm:px-12 sm:py-20 lg:px-20">
                     <div
                         aria-hidden="true"
-                        className="absolute inset-0 -z-10 [background-image:linear-gradient(to_right,color-mix(in_oklch,var(--primary-foreground)_10%,transparent)_1px,transparent_1px),linear-gradient(to_bottom,color-mix(in_oklch,var(--primary-foreground)_10%,transparent)_1px,transparent_1px)] [background-size:56px_56px] [mask-image:radial-gradient(ellipse_80%_90%_at_100%_100%,black,transparent)]"
+                        className="pointer-events-none absolute -right-24 -top-32 -z-10 size-96 rounded-full border border-primary-foreground/15 bg-primary-foreground/5 sm:size-[32rem]"
                     />
                     <h2
                         id="landing-cta-title"
-                        className="max-w-2xl font-heading text-4xl leading-[1.05] tracking-tight text-balance sm:text-5xl"
+                        className="max-w-3xl font-heading text-4xl leading-[1.1] tracking-tight text-balance sm:text-5xl lg:text-6xl"
                     >
                         {cta.title}
                     </h2>
-                    <p className="mt-6 max-w-xl text-pretty text-lg leading-8 text-primary-foreground/75">
+                    <p className="mt-6 max-w-2xl text-pretty text-lg leading-8 text-primary-foreground/85">
                         {cta.description}
                     </p>
-                    <div className="mt-10 flex flex-col gap-3 sm:flex-row">
+                    <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-start">
                         <LandingButtonLink
                             action={cta.primary}
                             size="lg"
                             variant="secondary"
+                            className="h-auto min-h-12 max-w-full rounded-full px-7 py-3 text-center whitespace-normal focus-visible:outline-primary-foreground focus-visible:ring-2 focus-visible:ring-primary-foreground focus-visible:ring-offset-2 focus-visible:ring-offset-primary motion-reduce:transition-none"
                             arrow
                         />
                         <LandingButtonLink
                             action={cta.secondary}
                             size="lg"
-                            variant="outline"
-                            className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
+                            variant="default"
+                            className="h-auto min-h-12 max-w-full rounded-full border-primary-foreground/50 bg-transparent px-7 py-3 text-center text-primary-foreground whitespace-normal hover:bg-primary-foreground/10 hover:text-primary-foreground focus-visible:border-primary-foreground focus-visible:outline-primary-foreground focus-visible:ring-2 focus-visible:ring-primary-foreground focus-visible:ring-offset-2 focus-visible:ring-offset-primary motion-reduce:transition-none"
                         />
                     </div>
-                    <p className="mt-8 text-sm text-primary-foreground/60">{cta.note}</p>
+                    <p className="mt-8 text-sm leading-6 text-primary-foreground/75">{cta.note}</p>
                 </div>
             </Reveal>
         </section>

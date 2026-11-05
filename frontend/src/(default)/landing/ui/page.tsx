@@ -52,7 +52,7 @@ function LandingView() {
     useSmoothAnchorScroll()
 
     return (
-        <SafeArea>
+        <SafeArea className="bg-background text-foreground [--background:#fafbf8] [--foreground:#18332f] [--card:#ffffff] [--card-foreground:#18332f] [--primary:#175c50] [--primary-foreground:#ffffff] [--secondary:#e7f1eb] [--secondary-foreground:#174f44] [--muted:#eef4ee] [--muted-foreground:#536b64] [--border:#dbe6de] [--ring:#267c6c]">
             <a
                 href="#landing-content"
                 className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-primary focus:px-4 focus:py-2 focus:text-xs focus:font-semibold focus:uppercase focus:tracking-widest focus:text-primary-foreground"

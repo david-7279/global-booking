@@ -16,47 +16,54 @@ type AudiencesSectionProps = {
 
 export function AudiencesSection({ id, audiences }: AudiencesSectionProps) {
     return (
-        <section id={id} aria-labelledby={`${id}-title`} className="scroll-mt-16">
-            <div className="mx-auto w-full max-w-6xl px-6 py-20 lg:px-8 lg:py-28">
+        <section id={id} aria-labelledby={`${id}-title`} className="scroll-mt-24 bg-background">
+            <div className="mx-auto w-full max-w-7xl px-6 py-20 lg:px-8 lg:py-28">
                 <Reveal>
                     <SectionHeading id={`${id}-title`} heading={audiences.heading} />
                 </Reveal>
 
-                <div className="mt-14 grid gap-6 md:grid-cols-2">
+                <div className="mt-14 grid gap-5 md:grid-cols-2 lg:gap-6">
                     {audiences.items.map((audience, position) => (
-                        <Reveal key={audience.id} delay={position * 120} className="flex">
+                        <Reveal key={audience.id} delay={position * 120} className="flex min-w-0">
                             <article
                                 className={cn(
-                                    'flex w-full flex-col border p-8 lg:p-10',
+                                    'flex w-full min-w-0 flex-col rounded-[2rem] border p-7 shadow-[0_20px_55px_-38px_rgba(23,92,80,0.4)] motion-safe:transition-[transform,box-shadow] motion-safe:duration-300 motion-safe:hover:-translate-y-1 motion-safe:hover:shadow-[0_25px_60px_-35px_rgba(23,92,80,0.5)] sm:p-9 lg:p-10',
                                     audience.featured
-                                        ? 'border-primary bg-primary text-primary-foreground'
-                                        : 'border-border bg-card',
+                                        ? 'border-primary bg-primary bg-[linear-gradient(145deg,var(--primary),#123e37)] text-primary-foreground'
+                                        : 'border-border bg-card text-foreground',
                                 )}
                             >
                                 <div className="flex items-center gap-3">
                                     <span
                                         className={cn(
-                                            'flex size-10 items-center justify-center border',
+                                            'flex size-12 shrink-0 items-center justify-center rounded-2xl border',
                                             audience.featured
-                                                ? 'border-primary-foreground/30'
-                                                : 'border-border bg-muted/50',
+                                                ? 'border-primary-foreground/20 bg-primary-foreground/10'
+                                                : 'border-border bg-secondary text-primary',
                                         )}
                                     >
                                         <LandingIcon name={audience.icon} className="size-5" />
                                     </span>
-                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] opacity-70">
+                                    <p
+                                        className={cn(
+                                            'text-xs font-semibold uppercase tracking-[0.18em]',
+                                            audience.featured
+                                                ? 'text-primary-foreground/80'
+                                                : 'text-primary',
+                                        )}
+                                    >
                                         {audience.label}
                                     </p>
                                 </div>
 
-                                <h3 className="mt-8 font-heading text-3xl leading-tight tracking-tight text-balance">
+                                <h3 className="mt-8 max-w-md font-heading text-3xl leading-tight tracking-tight text-balance sm:text-4xl">
                                     {audience.title}
                                 </h3>
                                 <p
                                     className={cn(
-                                        'mt-4 leading-7',
+                                        'mt-4 max-w-lg leading-7',
                                         audience.featured
-                                            ? 'text-primary-foreground/75'
+                                            ? 'text-primary-foreground/85'
                                             : 'text-muted-foreground',
                                     )}
                                 >
@@ -75,7 +82,12 @@ export function AudiencesSection({ id, audiences }: AudiencesSectionProps) {
                                         <li key={key} className="flex gap-3">
                                             <Check
                                                 aria-hidden="true"
-                                                className="mt-0.5 size-4 shrink-0"
+                                                className={cn(
+                                                    'mt-0.5 size-5 shrink-0 rounded-full p-1',
+                                                    audience.featured
+                                                        ? 'bg-primary-foreground/15 text-primary-foreground'
+                                                        : 'bg-secondary text-primary',
+                                                )}
                                             />
                                             <span>{item}</span>
                                         </li>
@@ -87,6 +99,12 @@ export function AudiencesSection({ id, audiences }: AudiencesSectionProps) {
                                         action={audience.action}
                                         variant={audience.featured ? 'secondary' : 'default'}
                                         arrow
+                                        className={cn(
+                                            'min-h-12 w-full max-w-full rounded-full whitespace-normal text-center motion-reduce:transition-none motion-reduce:active:translate-y-0 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-4 sm:w-auto',
+                                            audience.featured
+                                                ? 'focus-visible:outline-primary-foreground'
+                                                : 'focus-visible:outline-primary',
+                                        )}
                                     />
                                 </div>
                             </article>

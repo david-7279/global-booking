@@ -54,14 +54,26 @@ export function LandingButtonLink({
     className,
     onClick,
 }: LandingButtonLinkProps) {
+    // The landing has its own light palette even when the rest of the app uses dark mode.
+    const landingVariants = buttonVariants({ variant, size })
+        .split(' ')
+        .filter((token) => !token.startsWith('dark:'))
+        .join(' ')
+
     return (
         <LandingLink
             target={action.target}
             onClick={onClick}
-            className={cn(buttonVariants({ variant, size }), className)}
+            className={cn(
+                landingVariants,
+                'h-auto min-h-10 min-w-0 max-w-full shrink gap-2 rounded-lg px-5 py-2.5 text-center text-sm font-semibold leading-snug normal-case tracking-normal whitespace-normal [overflow-wrap:anywhere] shadow-sm transition-[background-color,border-color,box-shadow] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none motion-reduce:active:!translate-y-0',
+                size === 'lg' && 'min-h-12 px-6 py-3',
+                variant === 'ghost' && 'shadow-none',
+                className,
+            )}
         >
             {action.label}
-            {arrow ? <ArrowRight aria-hidden="true" /> : null}
+            {arrow ? <ArrowRight aria-hidden="true" className="size-4" /> : null}
         </LandingLink>
     )
 }
