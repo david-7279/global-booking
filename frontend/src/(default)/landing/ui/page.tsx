@@ -1,13 +1,14 @@
-import {ArrowDown, ArrowRight, Check, LockKeyhole, ShieldCheck, Sparkles} from 'lucide-react'
-import {Link} from 'react-router'
+import { ArrowDown, ArrowRight, Check, LockKeyhole, ShieldCheck, Sparkles } from 'lucide-react'
+import { Link } from 'react-router'
+import { landingContent } from '@/src/(default)/landing/content/landing-content.ts'
 import SafeArea from '@/src/components/shared/safe-area.tsx'
-import {buttonVariants} from '@/src/components/ui/button.tsx'
-import {cn} from '@/src/lib/utils.ts'
-import {paths} from '@/src/router/paths.ts'
-import {landingContent} from "@/src/(default)/landing/content/landing-content.ts";
+import { buttonVariants } from '@/src/components/ui/button.tsx'
+import { cn } from '@/src/lib/utils.ts'
+import { paths } from '@/src/router/paths.ts'
 
 export default function LandingPage() {
-    const {navigation, hero, productPreview, trust, process, features, cta, footer} = landingContent
+    const { navigation, hero, productPreview, trust, process, features, cta, footer } =
+        landingContent
 
     return (
         <SafeArea>
@@ -37,7 +38,7 @@ export default function LandingPage() {
                         </Link>
                         <Link
                             to={paths.auth}
-                            className={cn(buttonVariants({variant: 'outline', size: 'sm'}))}
+                            className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
                         >
                             {navigation.signIn}
                         </Link>
@@ -47,14 +48,11 @@ export default function LandingPage() {
 
             <main>
                 <section className="relative overflow-hidden border-b border-border">
-                    <div
-                        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_75%_35%,color-mix(in_oklch,var(--primary)_12%,transparent),transparent_32rem)]"/>
-                    <div
-                        className="relative mx-auto grid w-full max-w-7xl gap-16 px-6 pb-20 pt-20 lg:grid-cols-[0.94fr_1.06fr] lg:items-center lg:px-10 lg:pb-28 lg:pt-28">
+                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_75%_35%,color-mix(in_oklch,var(--primary)_12%,transparent),transparent_32rem)]" />
+                    <div className="relative mx-auto grid w-full max-w-7xl gap-16 px-6 pb-20 pt-20 lg:grid-cols-[0.94fr_1.06fr] lg:items-center lg:px-10 lg:pb-28 lg:pt-28">
                         <div className="max-w-2xl">
-                            <div
-                                className="mb-7 inline-flex items-center gap-2 border border-border bg-muted/40 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                                <Sparkles className="size-3.5 text-primary" aria-hidden="true"/>
+                            <div className="mb-7 inline-flex items-center gap-2 border border-border bg-muted/40 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                                <Sparkles className="size-3.5 text-primary" aria-hidden="true" />
                                 {hero.eyebrow}
                             </div>
                             <h1 className="max-w-xl font-heading text-5xl leading-[0.96] tracking-[-0.04em] text-foreground sm:text-6xl lg:text-7xl">
@@ -66,22 +64,22 @@ export default function LandingPage() {
                             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
                                 <Link
                                     to={paths.auth}
-                                    className={cn(buttonVariants({size: 'lg'}))}
+                                    className={cn(buttonVariants({ size: 'lg' }))}
                                 >
                                     {hero.primaryAction}
-                                    <ArrowRight aria-hidden="true"/>
+                                    <ArrowRight aria-hidden="true" />
                                 </Link>
                                 <a
                                     href="#como-funciona"
                                     className={cn(
-                                        buttonVariants({size: 'lg', variant: 'outline'}),
+                                        buttonVariants({ size: 'lg', variant: 'outline' }),
                                     )}
                                 >
                                     {hero.secondaryAction}
                                 </a>
                             </div>
                             <div className="mt-8 flex items-center gap-3 text-sm text-muted-foreground">
-                                <ShieldCheck className="size-4 text-primary" aria-hidden="true"/>
+                                <ShieldCheck className="size-4 text-primary" aria-hidden="true" />
                                 {hero.reassurance}
                             </div>
                         </div>
@@ -92,10 +90,8 @@ export default function LandingPage() {
                                 aria-hidden="true"
                             />
                             <div className="relative border border-border bg-muted/35 p-4 sm:p-7">
-                                <div
-                                    className="border border-border bg-card shadow-[0_24px_80px_-35px_color-mix(in_oklch,var(--foreground)_40%,transparent)]">
-                                    <div
-                                        className="flex items-center justify-between border-b border-border px-5 py-5 sm:px-7">
+                                <div className="border border-border bg-card shadow-[0_24px_80px_-35px_color-mix(in_oklch,var(--foreground)_40%,transparent)]">
+                                    <div className="flex items-center justify-between border-b border-border px-5 py-5 sm:px-7">
                                         <div>
                                             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                                                 {productPreview.label}
@@ -104,9 +100,8 @@ export default function LandingPage() {
                                                 {productPreview.title}
                                             </p>
                                         </div>
-                                        <div
-                                            className="flex size-10 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                                            <Check className="size-5" aria-hidden="true"/>
+                                        <div className="flex size-10 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                                            <Check className="size-5" aria-hidden="true" />
                                         </div>
                                     </div>
                                     <div className="space-y-3 p-5 sm:p-7">
@@ -115,8 +110,7 @@ export default function LandingPage() {
                                                 key={item}
                                                 className="flex items-center gap-3 border border-border/80 bg-background p-3.5"
                                             >
-                                                <span
-                                                    className="flex size-7 items-center justify-center bg-muted text-[10px] font-semibold tracking-wider text-muted-foreground">
+                                                <span className="flex size-7 items-center justify-center bg-muted text-[10px] font-semibold tracking-wider text-muted-foreground">
                                                     0{index + 1}
                                                 </span>
                                                 <span className="text-sm font-medium">{item}</span>
@@ -127,9 +121,8 @@ export default function LandingPage() {
                                             </div>
                                         ))}
                                     </div>
-                                    <div
-                                        className="flex items-center gap-2 border-t border-border px-5 py-4 text-xs text-muted-foreground sm:px-7">
-                                        <LockKeyhole className="size-3.5" aria-hidden="true"/>
+                                    <div className="flex items-center gap-2 border-t border-border px-5 py-4 text-xs text-muted-foreground sm:px-7">
+                                        <LockKeyhole className="size-3.5" aria-hidden="true" />
                                         {productPreview.footer}
                                         <span className="ml-auto text-primary">
                                             {productPreview.status}
@@ -144,7 +137,7 @@ export default function LandingPage() {
                         aria-label="Descer para saber mais"
                         className="absolute bottom-6 left-1/2 hidden -translate-x-1/2 text-muted-foreground transition-colors hover:text-foreground lg:block"
                     >
-                        <ArrowDown className="size-4" aria-hidden="true"/>
+                        <ArrowDown className="size-4" aria-hidden="true" />
                     </a>
                 </section>
 
@@ -152,8 +145,7 @@ export default function LandingPage() {
                     aria-label="Valores do Atlas"
                     className="border-b border-border bg-muted/20"
                 >
-                    <div
-                        className="mx-auto flex max-w-7xl flex-col gap-5 px-6 py-7 sm:flex-row sm:items-center sm:justify-between lg:px-10">
+                    <div className="mx-auto flex max-w-7xl flex-col gap-5 px-6 py-7 sm:flex-row sm:items-center sm:justify-between lg:px-10">
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                             {trust.label}
                         </p>
@@ -172,8 +164,7 @@ export default function LandingPage() {
                 </section>
 
                 <section id="como-funciona" className="border-b border-border">
-                    <div
-                        className="mx-auto grid max-w-7xl gap-14 px-6 py-20 lg:grid-cols-[0.72fr_1.28fr] lg:px-10 lg:py-28">
+                    <div className="mx-auto grid max-w-7xl gap-14 px-6 py-20 lg:grid-cols-[0.72fr_1.28fr] lg:px-10 lg:py-28">
                         <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                                 {process.eyebrow}
@@ -217,9 +208,8 @@ export default function LandingPage() {
                         <div className="mt-12 grid gap-px border border-border bg-border md:grid-cols-3">
                             {features.items.map((feature) => (
                                 <article key={feature.title} className="bg-background p-7 sm:p-9">
-                                    <div
-                                        className="mb-12 flex size-9 items-center justify-center border border-primary/40 text-primary">
-                                        <Check className="size-4" aria-hidden="true"/>
+                                    <div className="mb-12 flex size-9 items-center justify-center border border-primary/40 text-primary">
+                                        <Check className="size-4" aria-hidden="true" />
                                     </div>
                                     <h3 className="text-lg font-semibold">{feature.title}</h3>
                                     <p className="mt-3 leading-7 text-muted-foreground">
@@ -232,8 +222,7 @@ export default function LandingPage() {
                 </section>
 
                 <section className="border-y border-border bg-primary text-primary-foreground">
-                    <div
-                        className="mx-auto flex max-w-7xl flex-col gap-8 px-6 py-16 sm:flex-row sm:items-end sm:justify-between lg:px-10 lg:py-20">
+                    <div className="mx-auto flex max-w-7xl flex-col gap-8 px-6 py-16 sm:flex-row sm:items-end sm:justify-between lg:px-10 lg:py-20">
                         <div className="max-w-2xl">
                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary-foreground/65">
                                 {cta.eyebrow}
@@ -247,17 +236,16 @@ export default function LandingPage() {
                         </div>
                         <Link
                             to={paths.auth}
-                            className={cn(buttonVariants({variant: 'secondary', size: 'lg'}))}
+                            className={cn(buttonVariants({ variant: 'secondary', size: 'lg' }))}
                         >
                             {cta.action}
-                            <ArrowRight aria-hidden="true"/>
+                            <ArrowRight aria-hidden="true" />
                         </Link>
                     </div>
                 </section>
             </main>
 
-            <footer
-                className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-6 py-8 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between lg:px-10">
+            <footer className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-6 py-8 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between lg:px-10">
                 <p>
                     © {new Date().getFullYear()} Atlas. {footer.copyright}
                 </p>
