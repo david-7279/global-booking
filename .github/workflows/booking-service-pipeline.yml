@@ -1,0 +1,31 @@
+name: Booking Service CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - services/booking-service/**
+      - .github/workflows/booking-service-pipeline.yml
+      - .github/workflows/backend-service-ci.yml
+  push:
+    branches: [main]
+    paths:
+      - services/booking-service/**
+      - .github/workflows/booking-service-pipeline.yml
+      - .github/workflows/backend-service-ci.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: booking-service-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    uses: ./.github/workflows/backend-service-ci.yml
+    with:
+      service-name: Booking Service
+      working-directory: services/booking-service
+    permissions:
+      contents: read

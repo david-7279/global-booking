@@ -1,0 +1,64 @@
+name: Frontend CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - frontend/**
+      - .github/workflows/frontend-pipeline.yml
+  push:
+    branches: [main]
+    paths:
+      - frontend/**
+      - .github/workflows/frontend-pipeline.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Frontend
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Enable pnpm
+        working-directory: frontend
+        run: |
+          corepack enable
+          corepack install --global pnpm@11.25.0
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Type-check
+        working-directory: frontend
+        run: pnpm type-check
+
+      - name: Lint and format check
+        working-directory: frontend
+        run: pnpm check
+
+      - name: Build production bundle
+        working-directory: frontend
+        run: pnpm build
+
+      - name: Audit production dependencies
+        working-directory: frontend
+        run: pnpm audit --prod --audit-level=high
