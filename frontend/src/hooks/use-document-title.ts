@@ -1,4 +1,4 @@
-// src/(default)/legal/hooks/use-document-title.ts
+// src/hooks/use-document-title.ts
 
 import { useEffect } from 'react'
 

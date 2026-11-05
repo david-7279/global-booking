@@ -1,4 +1,4 @@
-// src/(default)/legal/hooks/use-scroll-to-hash.ts
+// src/hooks/use-scroll-to-hash.ts
 
 import { useEffect } from 'react'
 import { useLocation } from 'react-router'
