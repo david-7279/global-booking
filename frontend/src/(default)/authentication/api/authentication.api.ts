@@ -1,47 +1,67 @@
-// src/(default)/authentication/api/authentication.api.ts
-
+import axios from 'axios'
+import { normalizeAuthenticationError } from '@/src/(default)/authentication/api/authentication.errors.ts'
+import { getStoredAuthToken } from '@/src/(default)/authentication/storage/authentication.storage.ts'
 import type {
     AuthenticatedUser,
+    AuthenticationGateway,
     AuthenticationResponse,
     AuthSession,
-    LoginPayload,
-    RegisterPayload,
 } from '@/src/(default)/authentication/types/authentication.types.ts'
 import { http } from '@/src/lib/api/api-client.ts'
 
-export const AuthenticationApi = {
-    /**
-     * Register a new user
-     * @param payload The registration payload
-     * @returns The authentication session
-     */
-    register: async (payload: RegisterPayload): Promise<AuthSession> => {
-        const res = await http.post<AuthenticationResponse>('/auth/register', {
-            username: payload.name,
-            email: payload.email,
-            password: payload.password,
-        })
-        return toSession(res.data)
-    },
+export type { AuthenticationGateway } from '@/src/(default)/authentication/types/authentication.types.ts'
 
-    /**
-     * Login a user
-     * @param payload The login payload
-     * @returns The authentication response
-     */
-    login: async (payload: LoginPayload): Promise<AuthSession> => {
-        const res = await http.post<AuthenticationResponse>('/auth/login', payload)
-        return toSession(res.data)
-    },
+// A separate instance retains the backend error body before the global interceptor discards it.
+const authenticationHttp = axios.create({
+    baseURL: http.defaults.baseURL,
+    timeout: http.defaults.timeout,
+})
 
-    /**
-     * Get the current user
-     * @returns The authentication response
-     */
-    me: async (): Promise<AuthenticatedUser> => {
-        const res = await http.get<AuthenticationResponse['user']>('/auth/me')
-        return toUser(res.data)
-    },
+async function request<T>(operation: () => Promise<T>): Promise<T> {
+    try {
+        return await operation()
+    } catch (error) {
+        throw normalizeAuthenticationError(error)
+    }
+}
+
+export const AuthenticationApi: AuthenticationGateway = {
+    register: (payload) =>
+        request(async () => {
+            const res = await authenticationHttp.post<AuthenticationResponse>('/auth/register', {
+                username: payload.name,
+                email: payload.email,
+                password: payload.password,
+            })
+            return toSession(res.data)
+        }),
+    login: (payload) =>
+        request(async () => {
+            const res = await authenticationHttp.post<AuthenticationResponse>(
+                '/auth/login',
+                payload,
+            )
+            return toSession(res.data)
+        }),
+    me: (accessToken) =>
+        request(async () => {
+            const token = accessToken ?? getStoredAuthToken()
+            const res = await authenticationHttp.get<AuthenticationResponse['user']>('/auth/me', {
+                headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+            })
+            return toUser(res.data)
+        }),
+    refresh: (refreshToken) =>
+        request(async () => {
+            const res = await authenticationHttp.post<AuthenticationResponse>('/auth/refresh', {
+                refreshToken,
+            })
+            return toSession(res.data)
+        }),
+    logout: (refreshToken) =>
+        request(async () => {
+            await authenticationHttp.post<void>('/auth/logout', { refreshToken })
+        }),
 }
 
 function toSession(response: AuthenticationResponse): AuthSession {

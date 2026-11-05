@@ -11,6 +11,8 @@ import { Spinner } from '@/src/components/ui/spinner.tsx'
 import { Text } from '@/src/components/ui/text.tsx'
 
 const FORM_ID = 'form-login'
+const INPUT_CLASS =
+    'h-12 rounded-xl border border-input bg-[#fcfdfa] px-4 text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25 aria-invalid:border-destructive aria-invalid:border-b-destructive dark:aria-invalid:border-b-destructive'
 
 /**
  * Login form — thin UI over useFormLogin.
@@ -24,12 +26,15 @@ export function FormLogin() {
     return (
         <form id={FORM_ID} onSubmit={handleSubmit(onSubmit)} noValidate>
             {serverError && (
-                <div role="alert" className="text-destructive mb-4 text-sm">
+                <div
+                    role="alert"
+                    className="mb-5 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm leading-6 text-destructive"
+                >
                     {serverError}
                 </div>
             )}
 
-            <FieldGroup>
+            <FieldGroup className="gap-5 [&_[data-slot=field]]:gap-2 [&_[data-slot=field-label]]:text-[13px] [&_[data-slot=field-label]]:font-semibold [&_[data-slot=field-label]]:normal-case [&_[data-slot=field-label]]:tracking-normal dark:[&_[data-slot=button][type=button]]:hover:bg-transparent">
                 <Controller
                     name="email"
                     control={control}
@@ -42,6 +47,7 @@ export function FormLogin() {
                             autoComplete="email"
                             type="email"
                             error={fieldState.error?.message}
+                            className={INPUT_CLASS}
                         />
                     )}
                 />
@@ -56,18 +62,33 @@ export function FormLogin() {
                             inputId="form-login-password"
                             placeholder="Introduza a sua palavra-passe"
                             error={fieldState.error?.message}
+                            className={`${INPUT_CLASS} pr-12`}
                         />
                     )}
                 />
 
-                <Button type="submit" disabled={isSubmitting} aria-busy={isSubmitting} size="lg">
-                    {isSubmitting && <Spinner className="size-4" />}
+                <Button
+                    type="submit"
+                    disabled={isSubmitting}
+                    aria-busy={isSubmitting}
+                    size="lg"
+                    className="mt-1 h-12 w-full rounded-xl bg-primary px-5 text-sm font-semibold normal-case tracking-normal text-primary-foreground shadow-sm hover:bg-[#124b41] focus-visible:ring-ring/40 motion-reduce:active:!translate-y-0"
+                >
+                    {isSubmitting && (
+                        <Spinner
+                            aria-label="A carregar"
+                            className="size-4 motion-reduce:animate-none"
+                        />
+                    )}
                     <Text
                         variant="small"
-                        className="inline-flex gap-2 items-center text-primary-foreground"
+                        className="inline-flex w-full items-center justify-between gap-2 text-primary-foreground"
                     >
                         Entrar
-                        <ArrowRightIcon />
+                        <ArrowRightIcon
+                            aria-hidden="true"
+                            className="size-4 transition-transform group-hover/button:translate-x-1 motion-reduce:transform-none"
+                        />
                     </Text>
                 </Button>
             </FieldGroup>

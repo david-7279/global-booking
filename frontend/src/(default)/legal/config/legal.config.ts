@@ -28,7 +28,7 @@ export const LEGAL_CONTEXT: LegalContext = {
     },
     complaintsBookUrl: 'https://www.livroreclamacoes.pt',
     /**
-     * Mirror the auth-service defaults (ACCESS_TOKEN_EXPIRATION=900000 ms and
+     * Mirror the auth-services defaults (ACCESS_TOKEN_EXPIRATION=900000 ms and
      * REFRESH_TOKEN_EXPIRATION=604800000 ms). Keep in sync if the backend changes.
      */
     sessions: {

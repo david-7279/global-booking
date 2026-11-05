@@ -3,13 +3,12 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { useLocation, useNavigate } from 'react-router'
+import { handleAuthenticationFormError } from '@/src/(default)/authentication/hooks/authentication-form-error.ts'
 import { useAuthentication } from '@/src/(default)/authentication/hooks/use-authentication.ts'
 import {
     type RegisterFormValues,
     registerSchema,
 } from '@/src/(default)/authentication/ui/components/forms/schemas/auth.schema.ts'
-import { toast } from '@/src/components/ui/toast.tsx'
-import { isApiError } from '@/src/lib/api/api-errors.ts'
 import { paths } from '@/src/router/paths.ts'
 
 /** Generic message for unknown (non-ApiError) failures — never rendered from raw errors. */
@@ -42,26 +41,11 @@ export function useFormRegister() {
             )?.from?.pathname
             navigate(from ?? paths.workspace.root, { replace: true })
         } catch (error) {
-            if (isApiError(error)) {
-                if (error.isValidationError && error.fields) {
-                    for (const [field, messages] of Object.entries(error.fields)) {
-                        form.setError(field as keyof RegisterFormValues, { message: messages[0] })
-                    }
-                    return
-                }
-
-                form.setError('root', { type: 'server', message: error.message })
-
-                toast.add({
-                    title: 'Não foi possível criar a conta',
-                    description: error.message ?? REGISTER_ERROR,
-                    type: 'error',
-                })
-                return
-            }
-            form.setError('root', {
-                type: 'server',
-                message: REGISTER_ERROR,
+            handleAuthenticationFormError(error, {
+                setError: form.setError,
+                fields: ['name', 'email', 'password'],
+                title: 'Não foi possível criar a conta',
+                fallback: REGISTER_ERROR,
             })
         }
     }
