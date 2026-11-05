@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { Route, Routes } from 'react-router'
 import { AppLayout } from '@/src/(default)/layout.tsx'
+import PlannerLayout from '@/src/(services)/dashboard/ui/layout.tsx'
 import NotFoundPage from '@/src/not-found.tsx'
 import { GuestRouter } from '@/src/router/guest-router.tsx'
 import { paths } from '@/src/router/paths.ts'
@@ -11,6 +12,9 @@ const AuthenticationPage = lazy(() => import('@/src/(default)/authentication/ui/
 const PrivacyPage = lazy(() => import('@/src/(default)/legal/ui/privacy/page.tsx'))
 const TermsPage = lazy(() => import('@/src/(default)/legal/ui/terms/page.tsx'))
 const WorkspacePage = lazy(() => import('@/src/(default)/workspace/ui/page.tsx'))
+const BookingDashboardPage = lazy(() => import('@/src/(services)/dashboard/ui/page.tsx'))
+const BookingPage = lazy(() => import('@/src/(services)/booking/ui/page.tsx'))
+const BusinessPage = lazy(() => import('@/src/(services)/business/ui/page.tsx'))
 
 function RouteLoading() {
     return (
@@ -33,6 +37,21 @@ export default function AppRouter() {
                     </Route>
                     <Route element={<ProtectedRouter />}>
                         <Route path={paths.workspace.root} element={<WorkspacePage />} />
+                        <Route element={<PlannerLayout />}>
+                            <Route
+                                path={paths.workspace.dashboard}
+                                element={<BookingDashboardPage />}
+                            />
+                            <Route path={paths.workspace.booking.root} element={<BookingPage />} />
+                            <Route
+                                path={paths.workspace.booking.dashboard}
+                                element={<BookingPage />}
+                            />
+                            <Route
+                                path={paths.workspace.business.root}
+                                element={<BusinessPage />}
+                            />
+                        </Route>
                     </Route>
                 </Route>
                 <Route path="*" element={<NotFoundPage />} />

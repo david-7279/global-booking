@@ -54,3 +54,34 @@ export type AuthSession = {
         accessToken: string
     }
 }
+
+// ── Domain: planner dashboard ──────────────────────────────────────────────
+
+export type BalanceItem = {
+    leaveTypePublicId: string
+    leaveTypeName: string
+    remaining: number
+    usedDays: number
+    allowanceDays: number
+}
+
+export type BalancesData = {
+    items: BalanceItem[]
+}
+
+export type LeaveRequest = {
+    publicId: string
+    leaveTypeName: string
+    startsAt: string
+    endsAt: string
+    workingDays: number
+    reviewerPublicId?: string | null
+}
+
+export type CalendarEntry = {
+    publicId: string
+    userName: string
+    leaveTypeName: string
+    startsAt: string
+    endsAt: string
+}
