@@ -14,6 +14,6 @@ public record Actor(UUID userId, String role) {
     }
 
     public boolean canManage() {
-        return isAdmin() || "OPERATOR".equals(role);
+        return isAdmin() || "BUSINESS_OWNER".equals(role);
     }
 }

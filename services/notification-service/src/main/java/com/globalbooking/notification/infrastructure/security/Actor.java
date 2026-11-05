@@ -18,7 +18,7 @@ public record Actor(UUID userId, String role) {
     }
 
     public boolean isOperator() {
-        return "OPERATOR".equals(role);
+        return "BUSINESS_OWNER".equals(role);
     }
 
     public boolean canManage() {
