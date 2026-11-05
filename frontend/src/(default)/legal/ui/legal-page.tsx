@@ -11,7 +11,7 @@ import { LegalToc } from '@/src/(default)/legal/ui/components/legal-toc.tsx'
 import { LegalLayout } from '@/src/(default)/legal/ui/legal-layout.tsx'
 import { useDocumentTitle } from '@/src/hooks/use-document-title.ts'
 import { useScrollToHash } from '@/src/hooks/use-scroll-to-hash.ts'
-import {withPositionKeys} from "@/src/lib/utils/with-position-keys.ts";
+import { withPositionKeys } from '@/src/lib/utils/with-position-keys.ts'
 
 type LegalPageProps = {
     documentId: LegalDocumentId

@@ -4,8 +4,8 @@ import { Bell, Check } from 'lucide-react'
 import { useBookingDemo } from '@/src/(default)/landing/hooks/use-booking-demo.ts'
 import type { LandingBookingPreview } from '@/src/(default)/landing/types/landing.types.ts'
 import { Button } from '@/src/components/ui/button.tsx'
+import { withPositionKeys } from '@/src/lib/utils/with-position-keys.ts'
 import { cn } from '@/src/lib/utils.ts'
-import {withPositionKeys} from "@/src/lib/utils/with-position-keys.ts";
 
 type BookingPreviewProps = {
     preview: LandingBookingPreview

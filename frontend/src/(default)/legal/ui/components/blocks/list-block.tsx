@@ -2,8 +2,8 @@
 
 import type { LegalRichText } from '@/src/(default)/legal/types/legal.types.ts'
 import { LegalText } from '@/src/(default)/legal/ui/components/legal-text.tsx'
+import { withPositionKeys } from '@/src/lib/utils/with-position-keys.ts'
 import { cn } from '@/src/lib/utils.ts'
-import {withPositionKeys} from "@/src/lib/utils/with-position-keys.ts";
 
 type ListBlockProps = {
     ordered?: boolean

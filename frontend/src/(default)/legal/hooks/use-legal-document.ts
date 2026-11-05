@@ -20,7 +20,7 @@ import {
     type LegalMetaItem,
 } from '@/src/(default)/legal/types/legal.types.ts'
 import { useResolvedLocale } from '@/src/hooks/use-resolved-locale.ts'
-import {formatLegalDate} from "@/src/lib/utils/format-legal-date.ts";
+import { formatLegalDate } from '@/src/lib/utils/format-legal-date.ts'
 
 export type LegalDocumentView = {
     locale: LegalLocale

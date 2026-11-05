@@ -8,7 +8,7 @@ import type {
     LegalLinkTarget,
     LegalRichText,
 } from '@/src/(default)/legal/types/legal.types.ts'
-import {withPositionKeys} from "@/src/lib/utils/with-position-keys.ts";
+import { withPositionKeys } from '@/src/lib/utils/with-position-keys.ts'
 
 const linkClassName =
     'font-medium text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'

@@ -3,8 +3,8 @@
 import { Hash } from 'lucide-react'
 import type { LegalSection as LegalSectionModel } from '@/src/(default)/legal/types/legal.types.ts'
 import { LegalBlockView } from '@/src/(default)/legal/ui/components/legal-block.tsx'
-import {formatOrdinal} from "@/src/lib/utils/format-ordinal.ts";
-import {withPositionKeys} from "@/src/lib/utils/with-position-keys.ts";
+import { formatOrdinal } from '@/src/lib/utils/format-ordinal.ts'
+import { withPositionKeys } from '@/src/lib/utils/with-position-keys.ts'
 
 type LegalSectionProps = {
     section: LegalSectionModel

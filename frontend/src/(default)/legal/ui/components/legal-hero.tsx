@@ -4,7 +4,7 @@ import { Printer } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { LegalMetaItem } from '@/src/(default)/legal/types/legal.types.ts'
 import { Button } from '@/src/components/ui/button.tsx'
-import {withPositionKeys} from "@/src/lib/utils/with-position-keys.ts";
+import { withPositionKeys } from '@/src/lib/utils/with-position-keys.ts'
 
 type LegalHeroProps = {
     eyebrow: string

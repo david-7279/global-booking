@@ -6,8 +6,8 @@ import { LandingIcon } from '@/src/(default)/landing/ui/components/landing-icon.
 import { LandingButtonLink } from '@/src/(default)/landing/ui/components/landing-link.tsx'
 import { Reveal } from '@/src/(default)/landing/ui/components/reveal.tsx'
 import { SectionHeading } from '@/src/(default)/landing/ui/components/section-heading.tsx'
+import { withPositionKeys } from '@/src/lib/utils/with-position-keys.ts'
 import { cn } from '@/src/lib/utils.ts'
-import {withPositionKeys} from "@/src/lib/utils/with-position-keys.ts";
 
 type AudiencesSectionProps = {
     id: string

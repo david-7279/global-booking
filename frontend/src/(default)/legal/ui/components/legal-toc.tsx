@@ -4,8 +4,8 @@ import { ChevronDown } from 'lucide-react'
 import { useMemo, useRef } from 'react'
 import type { LegalSection } from '@/src/(default)/legal/types/legal.types.ts'
 import { useActiveSection } from '@/src/hooks/use-active-section.ts'
+import { formatOrdinal } from '@/src/lib/utils/format-ordinal.ts'
 import { cn } from '@/src/lib/utils.ts'
-import {formatOrdinal} from "@/src/lib/utils/format-ordinal.ts";
 
 type LegalTocProps = {
     sections: readonly LegalSection[]
