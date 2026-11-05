@@ -77,7 +77,7 @@ lifecycle.
 Clone the repository:
 
 ```bash
-git clone https://github.com/<username>/global-booking.git
+git clone https://github.com/david-7279/global-booking.git
 cd global-booking
 ```
 
